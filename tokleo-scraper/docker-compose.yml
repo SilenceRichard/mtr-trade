@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  tokleo-scraper:
+    build: .
+    ports:
+      - "3010:3010"
+    volumes:
+      # This volume allows the data to persist between container restarts
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - PORT=3010
+      # You can add other environment variables from .env here
+      # - API_KEY=${API_KEY} 
