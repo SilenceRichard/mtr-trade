@@ -1,0 +1,32 @@
+{
+  "name": "trader",
+  "version": "1.0.0",
+  "description": "Token trading management module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "example:quote": "ts-node examples/quote.ts",
+    "example:meteora": "ts-node examples/meteora.ts",
+    "example:get-private-key": "ts-node src/utils/get-private-key.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.0",
+    "@meteora-ag/dlmm": "^1.4.11",
+    "@solana/web3.js": "^1.98.0",
+    "@types/dotenv": "^6.1.1",
+    "dotenv": "^16.4.7",
+    "@types/bip39": "^2.4.2",
+    "bip39": "^3.1.0",
+    "ed25519-hd-key": "^1.3.0",
+    "@types/bs58": "^4.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2"
+  }
+}
