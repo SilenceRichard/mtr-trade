@@ -16,7 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
           <span></span>
         </div>
-        <div className="logo">Meteora Trade Admin</div>
+        {/* <div className="logo">Meteora Trade Admin</div> */}
         <div className="header-right">
           <div className="user-info">Admin</div>
         </div>

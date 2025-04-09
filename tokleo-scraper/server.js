@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const { analyzePools } = require('./analyzer');
+const {config} = require('dotenv');
 
+config();
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.SERVER_PORT || 3000;
 
 // Enable CORS for all routes
 app.use(cors());
