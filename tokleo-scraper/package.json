@@ -2,12 +2,14 @@
   "name": "tokleo-scraper",
   "version": "1.0.0",
   "description": "Scraper and analyzer for Tokleo pool data",
-  "main": "scraper.js",
+  "main": "index.js",
   "scripts": {
     "scrape": "node scraper.js",
     "start": "node index.js",
     "analyze": "node analyzer.js",
-    "scheduled": "node index.js --scheduled --web"
+    "scheduled": "node index.js --scheduled --web",
+    "dev": "nodemon index.js",
+    "server": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +17,15 @@
   "dependencies": {
     "axios": "^1.6.0",
     "dotenv": "^16.4.7",
-    "puppeteer": "^21.0.0"
+    "puppeteer": "^21.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.25",
+    "@types/puppeteer": "^5.4.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2",
+    "nodemon": "^3.0.1"
   }
 }
