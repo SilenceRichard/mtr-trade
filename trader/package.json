@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "test": "jest",
-    "example:quote": "ts-node examples/quote.ts",
+    "example:jupiter": "ts-node examples/jupiter.ts",
     "example:meteora": "ts-node examples/meteora.ts",
     "example:get-private-key": "ts-node src/utils/get-private-key.ts"
   },
