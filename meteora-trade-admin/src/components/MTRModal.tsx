@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { Modal, Typography, InputNumber, Radio, Button, Space, Divider, Steps } from "antd";
-import type { RadioChangeEvent } from 'antd';
-import { PoolItem } from "./MTRPools"; // Import the PoolItem type
-
-const { Title, Text } = Typography;
+import { Modal, Steps } from "antd";
+import { PoolItem } from "../services/poolService"; // Import the PoolItem type
+import { getJupiterQuote, executeJupiterSwap, QuoteResponse } from "../services/jupiterService";
+import { getActiveBinPrice, PriceInfo } from "../services/meteoraService";
+import { 
+  InitialForm, 
+  SwapStep, 
+  CreatePositionStep, 
+  FinishStep 
+} from "./steps";
 
 export const MTRModal = (props: {
   isModalVisible: boolean;
@@ -13,21 +18,47 @@ export const MTRModal = (props: {
   walletInfo?: {
     solBalance: number;
     usdcBalance: number;
+    tokenBalance?: number;
   };
 }) => {
-  console.log("selectedPool", props.selectedPool);
   // State for form values
   const [solAmount, setSolAmount] = useState<number | null>(null);
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "Bid Risk">("Spot");
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   
+  // Swap states
+  const [swapStatus, setSwapStatus] = useState<"idle" | "loading" | "success" | "failed">("idle");
+  const [swapQuote, setSwapQuote] = useState<QuoteResponse | null>(null);
+  const [swapResult, setSwapResult] = useState<{ signature: string; explorerUrl: string } | null>(null);
+  
+  // Price info state
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
+  const [loadingPrice, setLoadingPrice] = useState(false);
+  
   // Reset states when modal is closed
   useEffect(() => {
     if (!props.isModalVisible) {
       resetStates();
+    } else if (props.selectedPool?.poolAddress) {
+      fetchPoolPrice();
     }
-  }, [props.isModalVisible]);
+  }, [props.isModalVisible, props.selectedPool?.poolAddress]);
+
+  // Function to fetch pool price
+  const fetchPoolPrice = async () => {
+    if (!props.selectedPool?.poolAddress) return;
+    
+    setLoadingPrice(true);
+    try {
+      const price = await getActiveBinPrice(props.selectedPool.poolAddress);
+      setPriceInfo(price);
+    } catch (error) {
+      console.error("Error fetching pool price:", error);
+    } finally {
+      setLoadingPrice(false);
+    }
+  };
 
   // Function to reset all states
   const resetStates = () => {
@@ -35,19 +66,10 @@ export const MTRModal = (props: {
     setStrategy("Spot");
     setCurrentStep(0);
     setIsExecuting(false);
-  };
-  
-  // Predefined SOL amounts
-  const predefinedAmounts = [0.2, 0.5, 1];
-  
-  // Handle selecting predefined amount
-  const handleAmountSelect = (amount: number) => {
-    setSolAmount(amount);
-  };
-  
-  // Handle strategy change
-  const handleStrategyChange = (e: RadioChangeEvent) => {
-    setStrategy(e.target.value);
+    setSwapStatus("idle");
+    setSwapQuote(null);
+    setSwapResult(null);
+    setPriceInfo(null);
   };
   
   // Start execution process
@@ -55,7 +77,69 @@ export const MTRModal = (props: {
     if (!solAmount) return;
     setIsExecuting(true);
     setCurrentStep(0);
-    // Here we would normally call the API, but we're skipping that for now
+    
+    // If strategy is "Bid Risk", skip the swap step
+    if (strategy === "Bid Risk") {
+      // Just prepare for position creation
+    } else {
+      // For Spot and Curve, initiate the swap process
+      initiateSwap();
+    }
+  };
+  
+  // Initiate swap process
+  const initiateSwap = async () => {
+    if (!solAmount || !props.selectedPool || !props.selectedPool.tokenInfo.address) return;
+    
+    setSwapStatus("loading");
+    
+    try {
+      // Calculate the amount to swap (half of the total SOL)
+      const swapAmount = (solAmount / 2 * 10 ** 9).toString();
+      
+      // Get quote from Jupiter
+      const quoteParams = {
+        inputMint: "So11111111111111111111111111111111111111112", // SOL mint address
+        outputMint: props.selectedPool.tokenInfo.address, // Token mint address from selected pool
+        amount: swapAmount,
+        slippageBps: 100, // 0.5% slippage
+      };
+      
+      const quote = await getJupiterQuote(quoteParams);
+      
+      if (quote) {
+        setSwapQuote(quote);
+        setSwapStatus("success");
+      } else {
+        setSwapStatus("failed");
+      }
+    } catch (error) {
+      console.error("Error initiating swap:", error);
+      setSwapStatus("failed");
+    }
+  };
+  
+  // Execute swap with the obtained quote
+  const executeSwap = async () => {
+    if (!swapQuote) return;
+    
+    setSwapStatus("loading");
+    
+    try {
+      const result = await executeJupiterSwap(swapQuote);
+      
+      if (result) {
+        setSwapResult(result);
+        setSwapStatus("success");
+        // Automatically move to next step on success
+        setCurrentStep(1);
+      } else {
+        setSwapStatus("failed");
+      }
+    } catch (error) {
+      console.error("Error executing swap:", error);
+      setSwapStatus("failed");
+    }
   };
   
   // Get steps based on selected strategy
@@ -74,6 +158,73 @@ export const MTRModal = (props: {
     ];
   };
   
+  // Render the current step content
+  const renderStepContent = () => {
+    // For Bid Risk strategy
+    if (strategy === "Bid Risk") {
+      switch (currentStep) {
+        case 0:
+          return (
+            <CreatePositionStep
+              selectedPool={props.selectedPool}
+              solAmount={solAmount}
+              setCurrentStep={setCurrentStep}
+              currentStep={currentStep}
+              setIsExecuting={setIsExecuting}
+            />
+          );
+        case 1:
+          return (
+            <FinishStep
+              selectedPool={props.selectedPool}
+              solAmount={solAmount}
+              handleOk={props.handleOk}
+            />
+          );
+        default:
+          return null;
+      }
+    }
+    
+    // For Spot and Curve strategies
+    switch (currentStep) {
+      case 0:
+        return (
+          <SwapStep
+            selectedPool={props.selectedPool}
+            solAmount={solAmount}
+            swapStatus={swapStatus}
+            swapQuote={swapQuote}
+            swapResult={swapResult}
+            initiateSwap={initiateSwap}
+            executeSwap={executeSwap}
+            setCurrentStep={setCurrentStep}
+            setIsExecuting={setIsExecuting}
+          />
+        );
+      case 1:
+        return (
+          <CreatePositionStep
+            selectedPool={props.selectedPool}
+            solAmount={solAmount}
+            setCurrentStep={setCurrentStep}
+            currentStep={currentStep}
+            setIsExecuting={setIsExecuting}
+          />
+        );
+      case 2:
+        return (
+          <FinishStep
+            selectedPool={props.selectedPool}
+            solAmount={solAmount}
+            handleOk={props.handleOk}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+  
   return (
     <Modal
       title={`${props.selectedPool?.poolName || 'Pool'}`}
@@ -86,86 +237,18 @@ export const MTRModal = (props: {
       closeIcon={true}
     >
       {!isExecuting ? (
-        <>
-          {/* Pool Information */}
-          <div>
-            <Title level={5}>Pool Information</Title>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text>Base Fee: {props.selectedPool?.baseFee}%</Text>
-              <Text>Bin Step: {props.selectedPool?.binStep}</Text>
-            </Space>
-          </div>
-          
-          <Divider />
-          
-          {/* Wallet Information */}
-          <div>
-            <Title level={5}>Wallet Balance</Title>
-            <Text>SOL: {props.walletInfo?.solBalance}</Text>
-            <br />
-            <Text>USDC: {props.walletInfo?.usdcBalance}</Text>
-          </div>
-          
-          <Divider />
-          
-          {/* SOL Amount Selection */}
-          <div>
-            <Title level={5}>Select SOL Amount</Title>
-            <Space>
-              {predefinedAmounts.map((amount) => (
-                <Button 
-                  key={amount} 
-                  type={solAmount === amount ? "primary" : "default"}
-                  onClick={() => handleAmountSelect(amount)}
-                >
-                  {amount} SOL
-                </Button>
-              ))}
-              <InputNumber
-                placeholder="Custom amount"
-                value={!predefinedAmounts.includes(solAmount || 0) ? solAmount : null}
-                onChange={(value) => setSolAmount(value)}
-                min={0.01}
-                step={0.01}
-                addonAfter="SOL"
-              />
-            </Space>
-          </div>
-          
-          <Divider />
-          
-          {/* Strategy Selection */}
-          <div>
-            <Title level={5}>Select Strategy</Title>
-            <Radio.Group onChange={handleStrategyChange} value={strategy}>
-              <Space direction="vertical">
-                <Radio value="Spot">
-                  <Text strong>Spot</Text> - Swap half SOL to token, then create position
-                </Radio>
-                <Radio value="Curve">
-                  <Text strong>Curve</Text> - Swap half SOL to token, then create position
-                </Radio>
-                <Radio value="Bid Risk">
-                  <Text strong>Bid Risk</Text> - Use all SOL to create position
-                </Radio>
-              </Space>
-            </Radio.Group>
-          </div>
-          
-          <Divider />
-          
-          {/* Action Button */}
-          <div style={{ textAlign: "right" }}>
-            <Button 
-              type="primary" 
-              size="large"
-              disabled={!solAmount}
-              onClick={startExecution}
-            >
-              Execute
-            </Button>
-          </div>
-        </>
+        <InitialForm
+          selectedPool={props.selectedPool}
+          walletInfo={props.walletInfo}
+          loadingPrice={loadingPrice}
+          priceInfo={priceInfo}
+          fetchPoolPrice={fetchPoolPrice}
+          solAmount={solAmount}
+          setSolAmount={setSolAmount}
+          strategy={strategy}
+          setStrategy={setStrategy}
+          startExecution={startExecution}
+        />
       ) : (
         <>
           {/* Execution Steps */}
@@ -178,87 +261,7 @@ export const MTRModal = (props: {
           />
           
           <div style={{ marginTop: 24, padding: 24, backgroundColor: "#f5f5f5", borderRadius: 8 }}>
-            {strategy !== "Bid Risk" && currentStep === 0 && (
-              <div>
-                <Title level={5}>Swapping Tokens</Title>
-                <div>
-                  <Text>Trading Pair: SOL/{props.selectedPool?.poolName || 'Token'}</Text>
-                  <br />
-                  <Text>Amount: {solAmount ? solAmount / 2 : 0} SOL</Text>
-                  <br />
-                  <Text>Fee: {props.selectedPool?.baseFee}%</Text>
-                  <br />
-                  <Text>Status: Processing...</Text>
-                </div>
-                <div style={{ marginTop: 16 }}>
-                  <Button 
-                    type="primary" 
-                    onClick={() => setCurrentStep(1)}
-                  >
-                    Next Step (Simulating success)
-                  </Button>
-                  <Button 
-                    style={{ marginLeft: 8 }}
-                    onClick={() => setIsExecuting(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            {((strategy !== "Bid Risk" && currentStep === 1) || (strategy === "Bid Risk" && currentStep === 0)) && (
-              <div>
-                <Title level={5}>Creating Position</Title>
-                <div>
-                  <Text>Pool: {props.selectedPool?.poolName}</Text>
-                  <br />
-                  <Text>Position Amount: {solAmount} SOL</Text>
-                  <br />
-                  <Text>Bin Step: {props.selectedPool?.binStep}</Text>
-                  <br />
-                  <Text>Status: Processing...</Text>
-                </div>
-                <div style={{ marginTop: 16 }}>
-                  <Button 
-                    type="primary" 
-                    onClick={() => setCurrentStep(currentStep + 1)}
-                  >
-                    Next Step (Simulating success)
-                  </Button>
-                  <Button 
-                    style={{ marginLeft: 8 }}
-                    onClick={() => setIsExecuting(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            {((strategy !== "Bid Risk" && currentStep === 2) || (strategy === "Bid Risk" && currentStep === 1)) && (
-              <div>
-                <Title level={5}>Position Created Successfully</Title>
-                <div>
-                  <Text>Pool: {props.selectedPool?.poolName}</Text>
-                  <br />
-                  <Text>Position Amount: {solAmount} SOL</Text>
-                  <br />
-                  <Text>Creation Time: {new Date().toLocaleString()}</Text>
-                </div>
-                <div style={{ marginTop: 16 }}>
-                  <Button 
-                    type="primary" 
-                    onClick={() => {
-                      // Just transition to positions view without closing modal directly
-                      props.handleOk();
-                    }}
-                  >
-                    View Positions
-                  </Button>
-                </div>
-              </div>
-            )}
+            {renderStepContent()}
           </div>
         </>
       )}

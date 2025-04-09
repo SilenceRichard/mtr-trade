@@ -1,65 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { ProTable } from "@ant-design/pro-components";
-import { Button,  Radio, message } from "antd";
+import { Button, Radio, message } from "antd";
 import type { ActionType } from "@ant-design/pro-components";
-import axios from "axios";
-import { API_URL } from "../constant";
 import { columns } from "./MTRcolumns";
 import { MTRModal } from "./MTRModal";
-
-// Matching the structure from formatPoolSummary in analyzer.js
-export interface PoolItem {
-  poolName: string;
-  poolAddress: string;
-  tokenAddress: string;
-  meteoraLink: string;
-  gmgnLink: string;
-  geckoTerminalLink: string;
-  tokenInfo: {
-    name?: string;
-    address?: string;
-  };
-  exchangeInfo: {
-    type: string;
-  };
-  age: string;
-  binStep: number;
-  baseFee: number;
-  liquidity: string;
-  volume24h: string;
-  fees24h: string;
-  feeRatio24h: string;
-  hourlyRate24h: string;
-  hourlyRate1h: string;
-  hourlyRate30m: string;
-  change30m: string;
-  change1h: string;
-  volume24hHourly: string;
-  volume1hHourly: string;
-  holders: string;
-  vol24hGecko: string;
-  marketCap: string;
-  securityRating: string;
-  signals: string;
-  rating: string;
-}
-
-// API response structure
-interface ApiResponse {
-  highYieldPools: PoolItem[];
-  mediumYieldPools: PoolItem[];
-  emergingPools: PoolItem[];
-  avoidPools: PoolItem[];
-  topPoolsByFeeRatio: PoolItem[];
-}
-
-interface SearchParams {
-  poolName?: string;
-  pageSize?: number;
-  current?: number;
-  [key: string]: unknown;
-}
-
+import { 
+  fetchWalletInfo, 
+  fetchPoolTokenBalance,
+  fetchPools,
+  filterPoolsByCategory,
+  PoolItem,
+  ApiResponse,
+  SearchParams,
+  WalletInfo
+} from "../services";
 
 const MTRPools = () => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -70,6 +24,48 @@ const MTRPools = () => {
   const actionRef = useRef<ActionType>(null);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [selectedPool, setSelectedPool] = useState<PoolItem | undefined>(undefined);
+  const [walletInfo, setWalletInfo] = useState<WalletInfo>({
+    solBalance: 0,
+    usdcBalance: 0,
+    tokenBalance: 0,
+  });
+  const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
+
+  // Fetch wallet information
+  const handleFetchWalletInfo = async () => {
+    if (loadingWallet) return;
+    
+    setLoadingWallet(true);
+    try {
+      const walletInfoResult = await fetchWalletInfo();
+      if (walletInfoResult) {
+        setWalletInfo({
+          ...walletInfoResult,
+          tokenBalance: walletInfo.tokenBalance
+        });
+      }
+      setLoadingWallet(false);
+    } catch (error) {
+      console.error("Error fetching wallet info:", error);
+      setLoadingWallet(false);
+      message.error("Failed to fetch wallet information");
+    }
+  };
+
+  // Fetch token balance for selected pool
+  const handleFetchPoolTokenBalance = async (pool: PoolItem) => {
+    if (!pool || !pool.tokenAddress) return;
+    
+    try {
+      const tokenBalance = await fetchPoolTokenBalance(pool.tokenAddress);
+      setWalletInfo(prev => ({
+        ...prev,
+        tokenBalance,
+      }));
+    } catch (error) {
+      console.error("Error fetching pool token balance:", error);
+    }
+  };
 
   const showModal = () => {
     setIsModalVisible(true);
@@ -87,58 +83,27 @@ const MTRPools = () => {
   const handleCreatePosition = (record: PoolItem) => {
     console.log("Creating position for pool:", record);
     setSelectedPool(record); // Set the selected pool when creating a position
+    handleFetchPoolTokenBalance(record); // Fetch token balance for selected pool
+    showModal();
   };
+
+  // Fetch initial wallet information
+  useEffect(() => {
+    handleFetchWalletInfo();
+  }, []);
 
   // Fetch API data
   useEffect(() => {
     const fetchApiData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get<ApiResponse>(`${API_URL}/api/pools`);
-        console.log("API Response:", response.data);
-
-        // 验证API返回的数据结构
-        if (!response.data) {
-          console.error("API response data is empty");
-          message.error("No data received from API");
-          setLoading(false);
-          return;
+        const data = await fetchPools();
+        if (data) {
+          setApiData(data);
+          // Initialize filtered pool data
+          const filtered = filterPoolsByCategory(data, poolCategory);
+          setFilteredPools(filtered);
         }
-
-        // 检查是否有topPoolsByFeeRatio数据
-        if (
-          !response.data.topPoolsByFeeRatio ||
-          response.data.topPoolsByFeeRatio.length === 0
-        ) {
-          console.warn("No topPoolsByFeeRatio data in API response");
-        }
-
-        // 输出各个类别的池子数量，帮助调试
-        console.log(
-          "Top Pools By Fee Ratio count:",
-          response.data.topPoolsByFeeRatio?.length || 0
-        );
-        console.log(
-          "High Yield Pools count:",
-          response.data.highYieldPools?.length || 0
-        );
-        console.log(
-          "Medium Yield Pools count:",
-          response.data.mediumYieldPools?.length || 0
-        );
-        console.log(
-          "Emerging Pools count:",
-          response.data.emergingPools?.length || 0
-        );
-        console.log(
-          "Avoid Pools count:",
-          response.data.avoidPools?.length || 0
-        );
-
-        setApiData(response.data);
-
-        // 初始化已过滤的池数据
-        filterPoolsByCategory(response.data, poolCategory);
         setLoading(false);
       } catch (error) {
         console.error("Failed to fetch API data:", error);
@@ -149,83 +114,35 @@ const MTRPools = () => {
 
     fetchApiData();
 
-    // 设置定时器，每分钟刷新一次数据
+    // Set timer to refresh data every minute
     const intervalId = setInterval(() => {
       fetchApiData();
-    }, 60000); // 60000ms = 1分钟
+    }, 60000); // 60000ms = 1 minute
 
-    return () => clearInterval(intervalId); // 清理定时器
+    return () => clearInterval(intervalId); // Clean up timer
   }, []);
 
-  // 根据选择的类别过滤池数据
-  const filterPoolsByCategory = (
-    data: ApiResponse | null,
-    category: string
-  ) => {
-    if (!data) {
-      setFilteredPools([]);
-      return;
-    }
-
-    let pools: PoolItem[] = [];
-
-    if (category === "all") {
-      // 合并所有类别的池
-      const allPoolsSet = new Set<string>(); // 使用Set避免重复
-      const allPools: PoolItem[] = [];
-
-      // 按特定顺序处理类别，以确保重要的池显示在前面
-      [
-        data.topPoolsByFeeRatio || [],
-        data.highYieldPools || [],
-        data.mediumYieldPools || [],
-        data.emergingPools || [],
-        data.avoidPools || [],
-      ].forEach((categoryPools) => {
-        categoryPools.forEach((pool) => {
-          if (!allPoolsSet.has(pool.poolAddress)) {
-            allPoolsSet.add(pool.poolAddress);
-            allPools.push(pool);
-          }
-        });
-      });
-
-      pools = allPools;
-    } else if (category === "topPoolsByFeeRatio") {
-      pools = data.topPoolsByFeeRatio || [];
-      console.log(`Using ${pools.length} pools from topPoolsByFeeRatio`);
-    } else if (category === "highYieldPools") {
-      pools = data.highYieldPools || [];
-    } else if (category === "mediumYieldPools") {
-      pools = data.mediumYieldPools || [];
-    } else if (category === "emergingPools") {
-      pools = data.emergingPools || [];
-    } else if (category === "avoidPools") {
-      pools = data.avoidPools || [];
-    }
-
-    console.log(`Category: ${category}, Filtered pools: ${pools.length}`);
-    setFilteredPools(pools);
-
-    // 强制刷新表格
-    if (actionRef.current) {
-      actionRef.current.reload();
-    }
-  };
-
-  // 当poolCategory变化时，仅对本地数据进行过滤
+  // When poolCategory changes, filter local data
   useEffect(() => {
-    filterPoolsByCategory(apiData, poolCategory);
+    if (apiData) {
+      const filtered = filterPoolsByCategory(apiData, poolCategory);
+      setFilteredPools(filtered);
+
+      // Force refresh table
+      if (actionRef.current) {
+        actionRef.current.reload();
+      }
+    }
   }, [poolCategory, apiData]);
 
-  // 此函数现在只处理本地数据并应用搜索过滤
+  // Process local data and apply search filtering
   const getTableData = async (params: SearchParams) => {
     console.log("getTableData called with params:", params);
     try {
-      // 使用已过滤的本地数据
+      // Use already filtered local data
       let result = [...filteredPools];
 
-      // 应用额外的搜索过滤
+      // Apply additional search filtering
       if (params.poolName && typeof params.poolName === "string") {
         result = result.filter((pool) =>
           pool.poolName.toLowerCase().includes(params.poolName!.toLowerCase())
@@ -325,7 +242,7 @@ const MTRPools = () => {
       </Radio.Group>
 
       <ProTable<PoolItem>
-        key={poolCategory} // 重要：确保在分类变化时重新渲染表格
+        key={poolCategory} // Important: ensure table is re-rendered when category changes
         actionRef={actionRef}
         columns={columns(handleCreatePosition, showModal)}
         request={getTableData}
@@ -346,60 +263,34 @@ const MTRPools = () => {
           <Button
             key="refresh"
             loading={refreshing}
-            onClick={() => {
+            onClick={async () => {
               setRefreshing(true);
               setLoading(true);
-              setApiData(null);
-              // 刷新数据
-              const fetchData = async () => {
-                try {
-                  const response = await axios.get<ApiResponse>(
-                    `${API_URL}/api/pools`
-                  );
-                  console.log("Refresh API Response:", response.data);
-
-                  // 验证API返回的数据结构
-                  if (!response.data) {
-                    console.error("Refresh API response data is empty");
-                    message.error("No data received from API");
-                    setLoading(false);
-                    setRefreshing(false);
-                    return;
-                  }
-
-                  // 检查是否有topPoolsByFeeRatio数据
-                  if (
-                    !response.data.topPoolsByFeeRatio ||
-                    response.data.topPoolsByFeeRatio.length === 0
-                  ) {
-                    console.warn(
-                      "No topPoolsByFeeRatio data in refresh API response"
-                    );
-                  }
-
-                  // 输出各个类别的池子数量，帮助调试
-                  console.log(
-                    "Refresh - Top Pools By Fee Ratio count:",
-                    response.data.topPoolsByFeeRatio?.length || 0
-                  );
-
-                  setApiData(response.data);
-                  filterPoolsByCategory(response.data, poolCategory);
-                  setLoading(false);
-                  setRefreshing(false);
-
+              try {
+                const data = await fetchPools();
+                if (data) {
+                  setApiData(data);
+                  const filtered = filterPoolsByCategory(data, poolCategory);
+                  setFilteredPools(filtered);
                   message.success("Data refreshed successfully");
-                } catch (error) {
-                  console.error("Failed to refresh data:", error);
-                  setLoading(false);
-                  setRefreshing(false);
-                  message.error("Failed to refresh data");
                 }
-              };
-              fetchData();
+              } catch (error) {
+                console.error("Failed to refresh data:", error);
+                message.error("Failed to refresh data");
+              } finally {
+                setLoading(false);
+                setRefreshing(false);
+              }
             }}
           >
             Refresh
+          </Button>,
+          <Button
+            key="refreshWallet"
+            loading={loadingWallet}
+            onClick={handleFetchWalletInfo}
+          >
+            Refresh Wallet
           </Button>,
         ]}
       />
@@ -409,8 +300,9 @@ const MTRPools = () => {
         handleCancel={handleCancel}
         selectedPool={selectedPool}
         walletInfo={{
-          solBalance: 10, // Example values - replace with actual wallet data
-          usdcBalance: 5000
+          solBalance: walletInfo.solBalance, 
+          usdcBalance: walletInfo.usdcBalance,
+          tokenBalance: walletInfo.tokenBalance || 0
         }}
       />
     </div>

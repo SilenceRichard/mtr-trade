@@ -3,6 +3,7 @@ import { Connection } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { MeteoraService } from '../services/meteora';
 import { getWallet } from '../services/wallet';
+import { StrategyType } from '@meteora-ag/dlmm';
 
 /**
  * 初始化Meteora流动性池
@@ -123,7 +124,12 @@ export const getUserPositions = async (req: Request, res: Response) => {
 export const createPosition = async (req: Request, res: Response) => {
   try {
     const { poolAddress, xAmount, yAmount, maxPrice, minPrice, strategyType } = req.body;
-    
+    // "Spot" | "Curve" | "Bid Risk"
+    const STRATEGY_TYPE = {
+      "Spot": StrategyType.Spot,
+      "Curve": StrategyType.Curve,
+      "Bid Risk": StrategyType.BidAsk
+    }
     if (!poolAddress || xAmount === undefined || yAmount === undefined || 
         maxPrice === undefined || minPrice === undefined || !strategyType) {
       return res.status(400).json({
@@ -148,7 +154,7 @@ export const createPosition = async (req: Request, res: Response) => {
       yAmount: Number(yAmount),
       maxBinId,
       minBinId,
-      strategyType
+      strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE]
     });
     
     res.json({
