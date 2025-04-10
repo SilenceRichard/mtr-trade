@@ -265,12 +265,12 @@ export const getAllUserPositions = async (req: Request, res: Response): Promise<
         lbPairAddress: lbPairAddress.toString(),
         positionsCount: positionInfo.lbPairPositionsData.length,
         tokenX: {
-          mint: positionInfo.tokenX.mint.toString(),
+          mint: positionInfo.tokenX.mint.address,
           decimals: positionInfo.tokenX.mint.decimals,
           amount: positionInfo.tokenX.amount.toString()
         },
         tokenY: {
-          mint: positionInfo.tokenY.mint.toString(),
+          mint: positionInfo.tokenY.mint.address,
           decimals: positionInfo.tokenY.mint.decimals,
           amount: positionInfo.tokenY.amount.toString()
         },
@@ -284,5 +284,43 @@ export const getAllUserPositions = async (req: Request, res: Response): Promise<
   } catch (error: any) {
     console.error('Error fetching all user positions:', error);
     res.status(500).json({ error: `Failed to fetch all user positions: ${error.message}` });
+  }
+};
+
+/**
+ * 移除流动性
+ */
+export const removeLiquidity = async (req: Request, res: Response) => {
+  try {
+    const { poolAddress, positionAddress, fromBinId, toBinId } = req.body;
+    
+    if (!poolAddress || !positionAddress || fromBinId === undefined || toBinId === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'poolAddress, positionAddress, fromBinId, and toBinId are required'
+      });
+    }
+    
+    const wallet = await getWallet();
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    const meteora = new MeteoraService(connection);
+    await meteora.initializeDLMMPool(poolAddress);
+    
+    const txId = await meteora.removeLiquidity(wallet, positionAddress, fromBinId, toBinId);
+    
+    res.json({
+      success: true,
+      data: {
+        txId,
+        explorerUrl: `https://solscan.io/tx/${typeof txId === 'string' ? txId : txId[0]}`
+      }
+    });
+  } catch (error) {
+    console.error('Error removing liquidity:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }; 

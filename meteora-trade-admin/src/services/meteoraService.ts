@@ -133,7 +133,7 @@ export const getUserPositions = async (poolAddress: string): Promise<Position[] 
 export const createPosition = async (params: CreatePositionParams): Promise<CreatePositionResult | null> => {
   try {
     const response = await axios.post<{ success: boolean; data: CreatePositionResult; error?: string }>(
-      `${TRADER_API_URL}/meteora/positions/create`,
+      `${TRADER_API_URL}/meteora/positions`,
       params
     );
     
@@ -170,6 +170,38 @@ export const getAllUserPositions = async (walletAddress: string): Promise<PoolPo
   } catch (error) {
     console.error("Error fetching all positions:", error);
     message.error("Failed to get all positions");
+    return null;
+  }
+};
+
+// Remove liquidity
+export interface RemoveLiquidityResult {
+  txId: string;
+  explorerUrl: string;
+}
+
+export const removeLiquidity = async (
+  poolAddress: string, 
+  positionAddress: string, 
+  fromBinId: number, 
+  toBinId: number
+): Promise<RemoveLiquidityResult | null> => {
+  try {
+    const response = await axios.post<{ success: boolean; data: RemoveLiquidityResult; error?: string }>(
+      `${TRADER_API_URL}/meteora/positions/remove`,
+      { poolAddress, positionAddress, fromBinId, toBinId }
+    );
+    
+    if (response.data.success) {
+      message.success("Successfully removed liquidity");
+      return response.data.data;
+    } else {
+      message.error(`Failed to remove liquidity: ${response.data.error}`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error removing liquidity:", error);
+    message.error("Failed to remove liquidity");
     return null;
   }
 };

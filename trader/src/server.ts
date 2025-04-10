@@ -3,6 +3,7 @@ import cors from 'cors';
 import walletRoutes from './routes/wallet.routes';
 import jupiterRoutes from './routes/jupiter.routes';
 import meteoraRoutes from './routes/meteora.routes';
+import tokenRoutes from './routes/token.routes';
 
 const app = express();
 const port = process.env.PORT || 4001;
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api/wallet', walletRoutes);
 app.use('/api/jupiter', jupiterRoutes);
 app.use('/api/meteora', meteoraRoutes);
+app.use('/api/token', tokenRoutes);
 
 // Start server
 app.listen(port, () => {

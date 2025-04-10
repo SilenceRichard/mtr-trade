@@ -184,4 +184,58 @@ export class MeteoraService {
       throw error;
     }
   }
+
+  async removeLiquidity(
+    user: Keypair,
+    positionAddress: string,
+    fromBinId: number,
+    toBinId: number
+  ) {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+
+    try {
+      const txs = await this.dlmmPool.removeLiquidity({
+        position: new PublicKey(positionAddress),
+        user: user.publicKey,
+        fromBinId,
+        toBinId,
+        bps: new BN(10000), // 100% of liquidity
+      });
+
+      const txArray = Array.isArray(txs) ? txs : [txs];
+      const txHashes = [];
+
+      for (const tx of txArray) {
+        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+        const { opTx } = await buildOptimalTransaction({
+          transaction: tx,
+          connection: this.connection,
+          publicKey: user.publicKey,
+          signers: [user],
+        });
+
+        opTx.sign([user]);
+        const rawTx = opTx.serialize();
+        const txHash = await this.connection.sendRawTransaction(rawTx, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: 'confirmed',
+        });
+
+        await this.connection.confirmTransaction({
+          signature: txHash,
+          blockhash,
+          lastValidBlockHeight,
+        }, 'confirmed');
+
+        txHashes.push(txHash);
+      }
+
+      return txHashes.length === 1 ? txHashes[0] : txHashes;
+    } catch (error) {
+      console.error("Failed to remove liquidity:", error);
+      throw error;
+    }
+  }
 } 
