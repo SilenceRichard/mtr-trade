@@ -205,3 +205,63 @@ export const removeLiquidity = async (
     return null;
   }
 };
+
+// Claim fee
+export interface ClaimFeeResult {
+  txId: string;
+  explorerUrl: string;
+}
+
+export const claimFee = async (
+  poolAddress: string,
+  positionAddress: string
+): Promise<ClaimFeeResult | null> => {
+  try {
+    const response = await axios.post<{ success: boolean; data: ClaimFeeResult; error?: string }>(
+      `${TRADER_API_URL}/meteora/fee/claim`,
+      { poolAddress, positionAddress }
+    );
+    
+    if (response.data.success) {
+      message.success("Successfully claimed fees");
+      return response.data.data;
+    } else {
+      message.error(`Failed to claim fees: ${response.data.error}`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error claiming fees:", error);
+    message.error("Failed to claim fees");
+    return null;
+  }
+};
+
+// Close position
+export interface ClosePositionResult {
+  txId: string;
+  explorerUrl: string;
+}
+
+export const closePosition = async (
+  poolAddress: string,
+  positionAddress: string
+): Promise<ClosePositionResult | null> => {
+  try {
+    const response = await axios.post<{ success: boolean; data: ClosePositionResult; error?: string }>(
+      `${TRADER_API_URL}/meteora/positions/close`,
+      { poolAddress, positionAddress }
+    );
+    
+    if (response.data.success) {
+      message.success("Successfully closed position");
+      return response.data.data;
+    } else {
+      message.error(`Failed to close position: ${response.data.error}`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error closing position:", error);
+    message.error("Failed to close position");
+    return null;
+  }
+};

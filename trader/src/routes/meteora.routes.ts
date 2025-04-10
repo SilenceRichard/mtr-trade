@@ -21,4 +21,10 @@ router.get('/positions/all', meteoraController.getAllUserPositions as RequestHan
 // 移除流动性
 router.post('/positions/remove', meteoraController.removeLiquidity as RequestHandler);
 
+// 关闭头寸
+router.post('/positions/close', meteoraController.closePosition as RequestHandler);
+
+// 领取手续费
+router.post('/fee/claim', meteoraController.claimFee as RequestHandler);
+
 export default router; 

@@ -238,4 +238,101 @@ export class MeteoraService {
       throw error;
     }
   }
+
+  async claimFee(
+    user: Keypair,
+    positionAddress: string
+  ) {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+
+    try {
+      // First get the position
+      const position = await this.dlmmPool.getPosition(new PublicKey(positionAddress));
+      
+      // Then claim rewards
+      const txs = await this.dlmmPool.claimAllRewards({
+        owner: user.publicKey,
+        positions: [position],
+      });
+
+      const txHashes = [];
+      for (const tx of txs) {
+        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+        const { opTx } = await buildOptimalTransaction({
+          transaction: tx,
+          connection: this.connection,
+          publicKey: user.publicKey,
+          signers: [user],
+        });
+
+        opTx.sign([user]);
+        const rawTx = opTx.serialize();
+        const txHash = await this.connection.sendRawTransaction(rawTx, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: 'confirmed',
+        });
+
+        await this.connection.confirmTransaction({
+          signature: txHash,
+          blockhash,
+          lastValidBlockHeight,
+        }, 'confirmed');
+
+        txHashes.push(txHash);
+      }
+
+      return txHashes.length === 1 ? txHashes[0] : txHashes;
+    } catch (error) {
+      console.error("Failed to claim fee:", error);
+      throw error;
+    }
+  }
+
+  async closePosition(
+    user: Keypair,
+    positionAddress: string
+  ) {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+
+    try {
+      // First get the position
+      const position = await this.dlmmPool.getPosition(new PublicKey(positionAddress));
+      
+      // Close the position
+      const tx = await this.dlmmPool.closePosition({
+        owner: user.publicKey,
+        position: position,
+      });
+
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+      const { opTx } = await buildOptimalTransaction({
+        transaction: tx,
+        connection: this.connection,
+        publicKey: user.publicKey,
+        signers: [user],
+      });
+
+      opTx.sign([user]);
+      const rawTx = opTx.serialize();
+      const txHash = await this.connection.sendRawTransaction(rawTx, {
+        skipPreflight: false,
+        maxRetries: 5,
+        preflightCommitment: 'confirmed',
+      });
+
+      await this.connection.confirmTransaction({
+        signature: txHash,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      return txHash;
+    } catch (error) {
+      console.error("Failed to close position:", error);
+      throw error;
+    }
+  }
 } 

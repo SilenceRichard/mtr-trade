@@ -323,4 +323,80 @@ export const removeLiquidity = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+};
+
+/**
+ * 关闭头寸
+ */
+export const closePosition = async (req: Request, res: Response) => {
+  try {
+    const { poolAddress, positionAddress } = req.body;
+    
+    if (!poolAddress || !positionAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'poolAddress and positionAddress are required'
+      });
+    }
+    
+    const wallet = await getWallet();
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    const meteora = new MeteoraService(connection);
+    await meteora.initializeDLMMPool(poolAddress);
+    
+    const txId = await meteora.closePosition(wallet, positionAddress);
+    
+    res.json({
+      success: true,
+      data: {
+        txId,
+        explorerUrl: `https://solscan.io/tx/${typeof txId === 'string' ? txId : txId[0]}`
+      }
+    });
+  } catch (error) {
+    console.error('Error closing position:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+/**
+ * 领取手续费
+ */
+export const claimFee = async (req: Request, res: Response) => {
+  try {
+    const { poolAddress, positionAddress } = req.body;
+    
+    if (!poolAddress || !positionAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'poolAddress and positionAddress are required'
+      });
+    }
+    
+    const wallet = await getWallet();
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    const meteora = new MeteoraService(connection);
+    await meteora.initializeDLMMPool(poolAddress);
+    
+    const txId = await meteora.claimFee(wallet, positionAddress);
+    
+    res.json({
+      success: true,
+      data: {
+        txId,
+        explorerUrl: `https://solscan.io/tx/${typeof txId === 'string' ? txId : txId[0]}`
+      }
+    });
+  } catch (error) {
+    console.error('Error claiming fee:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }; 
