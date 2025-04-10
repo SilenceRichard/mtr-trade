@@ -9,4 +9,7 @@ router.get('/', walletController.getWalletPublicKey as RequestHandler);
 // 获取钱包余额
 router.get('/balance', walletController.getBalance as RequestHandler);
 
+// 获取代币精度
+router.get('/decimals', walletController.getTokenDecimals as RequestHandler);
+
 export default router; 

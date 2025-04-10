@@ -15,7 +15,7 @@ router.get('/positions', meteoraController.getUserPositions as RequestHandler);
 // 创建流动性头寸
 router.post('/positions/create', meteoraController.createPosition as RequestHandler);
 
-// 执行代币交换
-router.post('/swap', meteoraController.executeSwap as RequestHandler);
+// 获取用户在所有池中的仓位
+router.get('/positions/all', meteoraController.getAllUserPositions as RequestHandler);
 
 export default router; 

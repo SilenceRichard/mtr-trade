@@ -1,9 +1,10 @@
 import './App.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import MTRPools from './components/MTRPools'
-import Stats from './components/Stats'
-import Settings from './components/Settings'
+import Positions from './components/PositionStats'
 import Layout from './components/Layout'
+// import Test from './components/Test'
+// import PositionTest from './components/PositionTest'
 
 function App() {
   return (
@@ -12,8 +13,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/pools" replace />} />
           <Route path="/pools" element={<MTRPools />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/positions" element={<Positions />} />
+          {/* <Route path="/test" element={<Test />} />
+          <Route path="/position-test" element={<PositionTest />} /> */}
         </Routes>
       </Layout>
     </Router>

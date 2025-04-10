@@ -4,25 +4,50 @@ import { TRADER_API_URL } from "../constant";
 
 // Interfaces
 export interface PriceInfo {
-  realPrice: number;
+  realPrice: string;
   binId: number;
 }
 
 export interface Position {
-  positionId: string;
-  tokenXAmount: number;
-  tokenYAmount: number;
-  liquidity: string;
+  publicKey: string;
+  owner: string;
   lowerBinId: number;
   upperBinId: number;
-  lowerPrice: number;
-  upperPrice: number;
+  totalXAmount: string;
+  totalYAmount: string;
+  feeX: string;
+  feeY: string;
+  rewardOne: string;
+  rewardTwo: string;
+  totalClaimedFeeXAmount: string;
+  totalClaimedFeeYAmount: string;
+  feeXExcludeTransferFee: string;
+  feeYExcludeTransferFee: string;
+  rewardOneExcludeTransferFee: string;
+  rewardTwoExcludeTransferFee: string;
+  totalXAmountExcludeTransferFee: string;
+  totalYAmountExcludeTransferFee: string;
+  lastUpdatedAt: string;
+}
+
+export interface TokenInfo {
+  mint: string;
+  decimals: number;
+  amount: string;
+}
+
+export interface PoolPositionInfo {
+  lbPairAddress: string;
+  positionsCount: number;
+  tokenX: TokenInfo;
+  tokenY: TokenInfo;
+  positions: Position[];
 }
 
 export interface CreatePositionParams {
   poolAddress: string;
-  xAmount: number;
-  yAmount: number;
+  xAmount: string | number;
+  yAmount: string | number;
   maxPrice: number;
   minPrice: number;
   strategyType: string;
@@ -122,6 +147,29 @@ export const createPosition = async (params: CreatePositionParams): Promise<Crea
   } catch (error) {
     console.error("Error creating position:", error);
     message.error("Failed to create position");
+    return null;
+  }
+};
+
+// Get all user positions
+export const getAllUserPositions = async (walletAddress: string): Promise<PoolPositionInfo[] | null> => {
+  try {
+    const response = await axios.get<{ success: boolean; data: { positions: PoolPositionInfo[] }; error?: string }>(
+      `${TRADER_API_URL}/meteora/positions/all`,
+      { params: { walletAddress } }
+    );
+    
+    console.log('response', response.data);
+    if (response.data) {
+      const { positions } = response.data as unknown as { positions: PoolPositionInfo[] };
+      return positions;
+    } else {
+      message.error(`Failed to get all positions`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching all positions:", error);
+    message.error("Failed to get all positions");
     return null;
   }
 };

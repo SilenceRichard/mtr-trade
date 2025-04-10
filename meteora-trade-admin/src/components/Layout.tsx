@@ -30,12 +30,18 @@ const Layout = ({ children }: LayoutProps) => {
               <li className={location.pathname === '/pools' ? 'active' : ''}>
                 <Link to="/pools">Pools</Link>
               </li>
-              <li className={location.pathname === '/stats' ? 'active' : ''}>
-                <Link to="/stats">Stats</Link>
+              <li className={location.pathname === '/positions' ? 'active' : ''}>
+                <Link to="/positions">Positions</Link>
               </li>
-              <li className={location.pathname === '/settings' ? 'active' : ''}>
+              {/* <li className={location.pathname === '/settings' ? 'active' : ''}>
                 <Link to="/settings">Settings</Link>
+              </li> */}
+              {/* <li className={location.pathname === '/test' ? 'active' : ''}>
+                <Link to="/test">Test</Link>
               </li>
+              <li className={location.pathname === '/position-test' ? 'active' : ''}>
+                <Link to="/position-test">Position Test</Link>
+              </li> */}
             </ul>
           </nav>
         </aside>

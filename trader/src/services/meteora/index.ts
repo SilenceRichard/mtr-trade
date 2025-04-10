@@ -8,6 +8,8 @@ import DLMM, { LbPosition, StrategyType } from "@meteora-ag/dlmm";
 import { BN } from "@coral-xyz/anchor";
 import { buildOptimalTransaction } from "../../utils/transaction";
 
+
+
 export class MeteoraService {
   private connection: Connection;
   private dlmmPool: DLMM | null = null;
@@ -47,7 +49,6 @@ export class MeteoraService {
 
   async getUserPositions(userPublicKey: PublicKey) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
-
     try {
       const { userPositions } = await this.dlmmPool.getPositionsByUserAndLbPair(
         userPublicKey
@@ -64,10 +65,15 @@ export class MeteoraService {
     return this.dlmmPool.getBinIdFromPrice(price, min);
   }
 
+  toPricePerLamport(realPrice: string | number): string {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+    return this.dlmmPool.toPricePerLamport(Number(realPrice));
+  }
+
   async createPosition(props: {
     user: Keypair;
-    xAmount: number;
-    yAmount: number;
+    xAmount: string | number;
+    yAmount: string | number;
     maxBinId: number;
     minBinId: number;
     strategyType: StrategyType;
@@ -92,7 +98,9 @@ export class MeteoraService {
           },
         });
 
-      const { opTx, blockhash, lastValidBlockHeight } = await buildOptimalTransaction({
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+      const { opTx } = await buildOptimalTransaction({
         transaction: createPositionTx,
         connection: this.connection,
         publicKey: user.publicKey,
@@ -103,14 +111,15 @@ export class MeteoraService {
       const rawTx = opTx.serialize();
       const txId = await this.connection.sendRawTransaction(rawTx, {
         skipPreflight: false,
-        maxRetries: 3,
+        maxRetries: 5,
+        preflightCommitment: 'confirmed',
       });
 
       await this.connection.confirmTransaction({
         signature: txId,
         blockhash,
         lastValidBlockHeight,
-      });
+      }, 'confirmed');
 
       return {
         positionAddress: newPosition.publicKey.toString(),
@@ -146,7 +155,9 @@ export class MeteoraService {
           : this.dlmmPool.tokenY.publicKey,
       });
 
-      const { opTx, blockhash, lastValidBlockHeight } = await buildOptimalTransaction({
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+      const { opTx } = await buildOptimalTransaction({
         transaction: swapTx,
         connection: this.connection,
         publicKey: user.publicKey,
@@ -157,14 +168,15 @@ export class MeteoraService {
       const rawTx = opTx.serialize();
       const txHash = await this.connection.sendRawTransaction(rawTx, {
         skipPreflight: false,
-        maxRetries: 3,
+        maxRetries: 5,
+        preflightCommitment: 'confirmed',
       });
 
       await this.connection.confirmTransaction({
         signature: txHash,
         blockhash,
         lastValidBlockHeight,
-      });
+      }, 'confirmed');
 
       return txHash;
     } catch (error) {

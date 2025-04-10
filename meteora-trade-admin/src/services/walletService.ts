@@ -84,4 +84,22 @@ export const fetchPoolTokenBalance = async (tokenAddress: string): Promise<numbe
     console.error("Error fetching pool token balance:", error);
     return 0;
   }
+};
+
+// Fetch token decimals
+export const fetchTokenDecimals = async (mintAddress: string): Promise<number> => {
+  try {
+    const response = await axios.get<{success: boolean, data: {decimals: number, mintAddress: string}, error?: string}>(`${TRADER_API_URL}/wallet/decimals`, {
+      params: { mintAddress }
+    });
+    if (response.data.success) {
+      return response.data.data.decimals;
+    } else {
+      console.error("Failed to get token decimals:", response.data.error);
+      return 0;
+    }
+  } catch (error) {
+    console.error("Error fetching token decimals:", error);
+    return 0;
+  }
 }; 

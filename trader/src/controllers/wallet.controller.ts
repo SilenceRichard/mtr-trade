@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Connection } from '@solana/web3.js';
 import { getWallet, getWalletBalance } from '../services/wallet';
+import { fetchDecimal } from '../utils/decimals';
 
 /**
  * 获取钱包公钥
@@ -60,6 +61,41 @@ export const getBalance = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch balance'
+    });
+  }
+};
+
+/**
+ * 获取代币精度
+ */
+export const getTokenDecimals = async (req: Request, res: Response) => {
+  try {
+    const mintAddress = req.query.mintAddress as string;
+    
+    if (!mintAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'mintAddress is required'
+      });
+    }
+    
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    
+    const decimals = await fetchDecimal(connection, mintAddress);
+    
+    res.json({
+      success: true,
+      data: {
+        decimals,
+        mintAddress
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching token decimals:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch token decimals'
     });
   }
 }; 

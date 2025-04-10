@@ -3,7 +3,9 @@ import { Connection } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { MeteoraService } from '../services/meteora';
 import { getWallet } from '../services/wallet';
-import { StrategyType } from '@meteora-ag/dlmm';
+import { LbPosition, StrategyType } from '@meteora-ag/dlmm';
+import * as DLMM from '@meteora-ag/dlmm';
+import { PublicKey } from '@solana/web3.js';
 
 /**
  * 初始化Meteora流动性池
@@ -143,15 +145,17 @@ export const createPosition = async (req: Request, res: Response) => {
     const connection = new Connection(rpcEndpoint, 'confirmed');
     const meteora = new MeteoraService(connection);
     await meteora.initializeDLMMPool(poolAddress);
-    
+    // The priceInLamports is the raw price value obtained from the Meteora DLMM pool, which is the price representation used internally by the liquidity pool. 
+    const maxPriceInLamports = meteora.toPricePerLamport(maxPrice);
+    const minPriceInLamports = meteora.toPricePerLamport(minPrice);
     // 将价格转换为bin ID
-    const maxBinId = meteora.getBinIdFromPrice(maxPrice, false);
-    const minBinId = meteora.getBinIdFromPrice(minPrice, true);
-    
+    const maxBinId = meteora.getBinIdFromPrice(Number(maxPriceInLamports), true);
+    const minBinId = meteora.getBinIdFromPrice(Number(minPriceInLamports), true);
+   
     const result = await meteora.createPosition({
       user: wallet,
-      xAmount: Number(xAmount),
-      yAmount: Number(yAmount),
+      xAmount,
+      yAmount,
       maxBinId,
       minBinId,
       strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE]
@@ -173,45 +177,112 @@ export const createPosition = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * 执行代币交换
- */
-export const executeSwap = async (req: Request, res: Response) => {
-  try {
-    const { poolAddress, amount, swapYtoX, minOutAmount } = req.body;
-    
-    if (!poolAddress || amount === undefined || swapYtoX === undefined || minOutAmount === undefined) {
-      return res.status(400).json({
-        success: false,
-        error: 'poolAddress, amount, swapYtoX, and minOutAmount are required'
-      });
+// Define Position interface with processed BN values
+export interface ProcessedPosition {
+  publicKey: string;
+  owner: string;
+  lowerBinId: number;
+  upperBinId: number;
+  totalXAmount: string;
+  totalYAmount: string;
+  feeX: string;
+  feeY: string;
+  rewardOne: string;
+  rewardTwo: string;
+  totalClaimedFeeXAmount: string;
+  totalClaimedFeeYAmount: string;
+  feeXExcludeTransferFee: string;
+  feeYExcludeTransferFee: string;
+  rewardOneExcludeTransferFee: string;
+  rewardTwoExcludeTransferFee: string;
+  totalXAmountExcludeTransferFee: string;
+  totalYAmountExcludeTransferFee: string;
+  lastUpdatedAt: string;
+}
+
+ // Helper method to convert LbPosition to a more usable format
+ function processPositionData(position: LbPosition): ProcessedPosition {
+  const { positionData } = position;
+  
+  // Helper function to convert BN or hex string to decimal string
+  const bnToDecimal = (value: BN | string): string => {
+    if (value instanceof BN) {
+      return value.toString(10);
+    } else {
+      return value;
     }
-    
-    const wallet = await getWallet();
+  };
+  
+  // Process BN values to strings for display
+  return {
+    publicKey: position.publicKey.toString(),
+    owner: positionData.owner.toString(),
+    lowerBinId: positionData.lowerBinId,
+    upperBinId: positionData.upperBinId,
+    totalXAmount: bnToDecimal(positionData.totalXAmount),
+    totalYAmount: bnToDecimal(positionData.totalYAmount),
+    feeX: bnToDecimal(positionData.feeX),
+    feeY: bnToDecimal(positionData.feeY),
+    rewardOne: bnToDecimal(positionData.rewardOne),
+    rewardTwo: bnToDecimal(positionData.rewardTwo),
+    totalClaimedFeeXAmount: bnToDecimal(positionData.totalClaimedFeeXAmount),
+    totalClaimedFeeYAmount: bnToDecimal(positionData.totalClaimedFeeYAmount),
+    feeXExcludeTransferFee: bnToDecimal(positionData.feeXExcludeTransferFee),
+    feeYExcludeTransferFee: bnToDecimal(positionData.feeYExcludeTransferFee),
+    rewardOneExcludeTransferFee: bnToDecimal(positionData.rewardOneExcludeTransferFee),
+    rewardTwoExcludeTransferFee: bnToDecimal(positionData.rewardTwoExcludeTransferFee),
+    totalXAmountExcludeTransferFee: bnToDecimal(positionData.totalXAmountExcludeTransferFee),
+    totalYAmountExcludeTransferFee: bnToDecimal(positionData.totalYAmountExcludeTransferFee),
+    lastUpdatedAt: bnToDecimal(positionData.lastUpdatedAt),
+  };
+}
+
+/**
+ * 获取用户在所有池中的仓位
+ */
+export const getAllUserPositions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { walletAddress } = req.query;
+
+    // 参数验证
+    if (!walletAddress) {
+      res.status(400).json({ error: 'Missing wallet address' });
+      return;
+    }
+
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
-    await meteora.initializeDLMMPool(poolAddress);
     
-    const txHash = await meteora.executeSwap(
-      wallet,
-      new BN(amount),
-      swapYtoX,
-      new BN(minOutAmount)
+    // 使用DLMM的静态方法获取用户在所有流动性池中的仓位
+    const allPositions = await DLMM.default.getAllLbPairPositionsByUser(
+      connection, 
+      new PublicKey(walletAddress as string)
     );
     
-    res.json({
-      success: true,
-      data: {
-        txHash,
-        explorerUrl: `https://solscan.io/tx/${txHash}`
-      }
+    // 处理结果为更友好的格式
+    const positions = Array.from(allPositions.entries()).map(([lbPairAddress, positionInfo]) => {
+      return {
+        lbPairAddress: lbPairAddress.toString(),
+        positionsCount: positionInfo.lbPairPositionsData.length,
+        tokenX: {
+          mint: positionInfo.tokenX.mint.toString(),
+          decimals: positionInfo.tokenX.mint.decimals,
+          amount: positionInfo.tokenX.amount.toString()
+        },
+        tokenY: {
+          mint: positionInfo.tokenY.mint.toString(),
+          decimals: positionInfo.tokenY.mint.decimals,
+          amount: positionInfo.tokenY.amount.toString()
+        },
+        positions: positionInfo.lbPairPositionsData.map(pos => ({
+          ...processPositionData(pos)
+        }))
+      };
     });
-  } catch (error) {
-    console.error('Error executing Meteora swap:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+
+    res.status(200).json({ positions });
+  } catch (error: any) {
+    console.error('Error fetching all user positions:', error);
+    res.status(500).json({ error: `Failed to fetch all user positions: ${error.message}` });
   }
 }; 

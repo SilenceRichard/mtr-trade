@@ -81,7 +81,7 @@ const MTRPools = () => {
   };
 
   const handleCreatePosition = (record: PoolItem) => {
-    console.log("Creating position for pool:", record);
+    // console.log("Creating position for pool:", record);
     setSelectedPool(record); // Set the selected pool when creating a position
     handleFetchPoolTokenBalance(record); // Fetch token balance for selected pool
     showModal();

@@ -4,6 +4,11 @@ import { PoolItem } from "../services/poolService"; // Import the PoolItem type
 import { getJupiterQuote, executeJupiterSwap, QuoteResponse } from "../services/jupiterService";
 import { getActiveBinPrice, PriceInfo } from "../services/meteoraService";
 import { 
+  fetchWalletInfo, 
+  fetchPoolTokenBalance, 
+  fetchTokenDecimals 
+} from "../services";
+import { 
   InitialForm, 
   SwapStep, 
   CreatePositionStep, 
@@ -36,14 +41,58 @@ export const MTRModal = (props: {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
   
+  // Local wallet info state
+  const [localWalletInfo, setLocalWalletInfo] = useState(props.walletInfo);
+
+  // Token decimals state
+  const [tokenDecimals, setTokenDecimals] = useState<number>(0);
+  const [solDecimals, setSolDecimals] = useState<number>(9); // SOL has 9 decimals by default
+  
   // Reset states when modal is closed
   useEffect(() => {
     if (!props.isModalVisible) {
       resetStates();
     } else if (props.selectedPool?.poolAddress) {
       fetchPoolPrice();
+      setLocalWalletInfo(props.walletInfo);
+      fetchPoolTokenDecimals();
     }
-  }, [props.isModalVisible, props.selectedPool?.poolAddress]);
+  }, [props.isModalVisible, props.selectedPool?.poolAddress, props.walletInfo]);
+
+  // Fetch pool token decimals
+  const fetchPoolTokenDecimals = async () => {
+    if (!props.selectedPool?.tokenInfo.address) return;
+    
+    try {
+      // Fetch token decimals
+      const decimals = await fetchTokenDecimals(props.selectedPool.tokenInfo.address);
+      setTokenDecimals(decimals);
+      
+      // Also fetch SOL decimals (though we know it's 9)
+      const solDecimalValue = await fetchTokenDecimals("So11111111111111111111111111111111111111112");
+      setSolDecimals(solDecimalValue);
+    } catch (error) {
+      console.error("Error fetching token decimals:", error);
+    }
+  };
+
+  // Function to refresh wallet balance
+  const refreshWalletBalance = async () => {
+    try {
+      const walletInfoResult = await fetchWalletInfo();
+      
+      if (walletInfoResult && props.selectedPool?.tokenAddress) {
+        const tokenBalance = await fetchPoolTokenBalance(props.selectedPool.tokenAddress);
+        
+        setLocalWalletInfo({
+          ...walletInfoResult,
+          tokenBalance
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing wallet balance:", error);
+    }
+  };
 
   // Function to fetch pool price
   const fetchPoolPrice = async () => {
@@ -70,6 +119,7 @@ export const MTRModal = (props: {
     setSwapQuote(null);
     setSwapResult(null);
     setPriceInfo(null);
+    setLocalWalletInfo(props.walletInfo);
   };
   
   // Start execution process
@@ -95,7 +145,7 @@ export const MTRModal = (props: {
     
     try {
       // Calculate the amount to swap (half of the total SOL)
-      const swapAmount = (solAmount / 2 * 10 ** 9).toString();
+      const swapAmount = (solAmount / 2 * (10 ** solDecimals)).toString();
       
       // Get quote from Jupiter
       const quoteParams = {
@@ -131,6 +181,10 @@ export const MTRModal = (props: {
       if (result) {
         setSwapResult(result);
         setSwapStatus("success");
+        
+        // Refresh wallet balance after successful swap
+        await refreshWalletBalance();
+        
         // Automatically move to next step on success
         setCurrentStep(1);
       } else {
@@ -171,6 +225,9 @@ export const MTRModal = (props: {
               setCurrentStep={setCurrentStep}
               currentStep={currentStep}
               setIsExecuting={setIsExecuting}
+              strategy={strategy}
+              walletInfo={localWalletInfo}
+              tokenDecimals={tokenDecimals}
             />
           );
         case 1:
@@ -210,6 +267,9 @@ export const MTRModal = (props: {
             setCurrentStep={setCurrentStep}
             currentStep={currentStep}
             setIsExecuting={setIsExecuting}
+            strategy={strategy}
+            walletInfo={localWalletInfo}
+            tokenDecimals={tokenDecimals}
           />
         );
       case 2:
@@ -239,7 +299,7 @@ export const MTRModal = (props: {
       {!isExecuting ? (
         <InitialForm
           selectedPool={props.selectedPool}
-          walletInfo={props.walletInfo}
+          walletInfo={localWalletInfo}
           loadingPrice={loadingPrice}
           priceInfo={priceInfo}
           fetchPoolPrice={fetchPoolPrice}
