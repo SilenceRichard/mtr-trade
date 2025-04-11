@@ -1,5 +1,5 @@
 import axios from "axios";
-import { message } from "antd";
+import notification from "../utils/notification";
 import { TRADER_API_URL } from "../constant";
 
 // Interfaces
@@ -59,6 +59,13 @@ export interface CreatePositionResult {
   explorerUrl: string;
 }
 
+export interface PositionQuoteResult {
+  binArraysCount: number;
+  binArrayCost: number;
+  positionCount: number;
+  positionCost: number;
+}
+
 export interface SwapParams {
   poolAddress: string;
   amount: number;
@@ -78,12 +85,12 @@ export const initializePool = async (poolAddress: string): Promise<boolean> => {
     if (response.data.success) {
       return true;
     } else {
-      message.error(`Failed to initialize pool: ${response.data.error}`);
+      notification.error("Failed to initialize pool", response.data.error);
       return false;
     }
   } catch (error) {
     console.error("Error initializing Meteora pool:", error);
-    message.error("Failed to initialize Meteora pool");
+    notification.error("Failed to initialize Meteora pool");
     return false;
   }
 };
@@ -98,12 +105,12 @@ export const getActiveBinPrice = async (poolAddress: string): Promise<PriceInfo 
     if (response.data.success) {
       return response.data.data;
     } else {
-      message.error(`Failed to get pool price: ${response.data.error}`);
+      notification.error("Failed to get pool price", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error fetching pool price:", error);
-    message.error("Failed to get pool price");
+    notification.error("Failed to get pool price");
     return null;
   }
 };
@@ -119,12 +126,12 @@ export const getUserPositions = async (poolAddress: string): Promise<Position[] 
     if (response.data.success) {
       return response.data.data.positions;
     } else {
-      message.error(`Failed to get positions: ${response.data.error}`);
+      notification.error("Failed to get positions", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error fetching positions:", error);
-    message.error("Failed to get positions");
+    notification.error("Failed to get positions");
     return null;
   }
 };
@@ -138,15 +145,36 @@ export const createPosition = async (params: CreatePositionParams): Promise<Crea
     );
     
     if (response.data.success) {
-      message.success("Position created successfully");
+      notification.success("Position created successfully");
       return response.data.data;
     } else {
-      message.error(`Failed to create position: ${response.data.error}`);
+      notification.error("Failed to create position", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error creating position:", error);
-    message.error("Failed to create position");
+    notification.error("Failed to create position");
+    return null;
+  }
+};
+
+// Get position quote
+export const getPositionQuote = async (params: CreatePositionParams): Promise<PositionQuoteResult | null> => {
+  try {
+    const response = await axios.post<{ success: boolean; data: PositionQuoteResult; error?: string }>(
+      `${TRADER_API_URL}/meteora/positions/quote`,
+      params
+    );
+    
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      notification.error("Failed to get position quote", response.data.error);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting position quote:", error);
+    notification.error("Failed to get position quote");
     return null;
   }
 };
@@ -164,12 +192,12 @@ export const getAllUserPositions = async (walletAddress: string): Promise<PoolPo
       const { positions } = response.data as unknown as { positions: PoolPositionInfo[] };
       return positions;
     } else {
-      message.error(`Failed to get all positions`);
+      notification.error("Failed to get all positions");
       return null;
     }
   } catch (error) {
     console.error("Error fetching all positions:", error);
-    message.error("Failed to get all positions");
+    notification.error("Failed to get all positions");
     return null;
   }
 };
@@ -193,15 +221,15 @@ export const removeLiquidity = async (
     );
     
     if (response.data.success) {
-      message.success("Successfully removed liquidity");
+      notification.success("Successfully removed liquidity");
       return response.data.data;
     } else {
-      message.error(`Failed to remove liquidity: ${response.data.error}`);
+      notification.error("Failed to remove liquidity", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error removing liquidity:", error);
-    message.error("Failed to remove liquidity");
+    notification.error("Failed to remove liquidity");
     return null;
   }
 };
@@ -223,15 +251,15 @@ export const claimFee = async (
     );
     
     if (response.data.success) {
-      message.success("Successfully claimed fees");
+      notification.success("Successfully claimed fees");
       return response.data.data;
     } else {
-      message.error(`Failed to claim fees: ${response.data.error}`);
+      notification.error("Failed to claim fees", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error claiming fees:", error);
-    message.error("Failed to claim fees");
+    notification.error("Failed to claim fees");
     return null;
   }
 };
@@ -253,15 +281,15 @@ export const closePosition = async (
     );
     
     if (response.data.success) {
-      message.success("Successfully closed position");
+      notification.success("Successfully closed position");
       return response.data.data;
     } else {
-      message.error(`Failed to close position: ${response.data.error}`);
+      notification.error("Failed to close position", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error closing position:", error);
-    message.error("Failed to close position");
+    notification.error("Failed to close position");
     return null;
   }
 };

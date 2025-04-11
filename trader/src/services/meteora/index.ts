@@ -70,6 +70,30 @@ export class MeteoraService {
     return this.dlmmPool.toPricePerLamport(Number(realPrice));
   }
 
+  async getPositionQuote(props: {
+    xAmount: string | number;
+    yAmount: string | number;
+    maxBinId: number;
+    minBinId: number;
+    strategyType: StrategyType;
+  }) {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+    const { xAmount, yAmount, maxBinId, minBinId, strategyType } = props;
+    try {
+      const quote = await this.dlmmPool.quoteCreatePosition({
+        strategy: {
+          maxBinId,
+          minBinId,
+          strategyType,
+        }
+      });
+      return quote;
+    } catch (error) {
+      console.error("Failed to get position quote:", error);
+      throw error;
+    }
+  }
+
   async createPosition(props: {
     user: Keypair;
     xAmount: string | number;

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Select, Typography, Space, Spin, message, InputNumber, Form } from 'antd';
+import { Card, Button, Select, Typography, Space, Spin, InputNumber, Form, Divider } from 'antd';
 import { 
   createPosition, 
   getActiveBinPrice,
   initializePool,
+  getPositionQuote,
   CreatePositionParams, 
-  CreatePositionResult 
+  CreatePositionResult,
+  PositionQuoteResult
 } from '../services/meteoraService';
 import { fetchWalletInfo, WalletInfo } from '../services/walletService';
+import notification from '../utils/notification';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
@@ -16,9 +19,11 @@ const PositionTest: React.FC = () => {
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [creatingPosition, setCreatingPosition] = useState(false);
+  const [loadingQuote, setLoadingQuote] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [result, setResult] = useState<CreatePositionResult | null>(null);
+  const [quoteResult, setQuoteResult] = useState<PositionQuoteResult | null>(null);
   const [form] = Form.useForm();
 
   // SOL-USDC pool address
@@ -37,7 +42,7 @@ const PositionTest: React.FC = () => {
       setWalletInfo(info);
     } catch (error) {
       console.error('Error loading wallet info:', error);
-      message.error('Failed to load wallet information');
+      notification.error('Failed to load wallet information');
     } finally {
       setLoading(false);
     }
@@ -47,11 +52,11 @@ const PositionTest: React.FC = () => {
     try {
       const initialized = await initializePool(poolAddress);
       if (initialized) {
-        message.success('Pool initialized successfully');
+        notification.success('Pool initialized successfully');
       }
     } catch (error) {
       console.error('Error initializing pool:', error);
-      message.error('Failed to initialize pool');
+      notification.error('Failed to initialize pool');
     }
   };
 
@@ -71,9 +76,35 @@ const PositionTest: React.FC = () => {
       }
     } catch (error) {
       console.error('Error getting current price:', error);
-      message.error('Failed to get current price');
+      notification.error('Failed to get current price');
     } finally {
       setPriceLoading(false);
+    }
+  };
+
+  const handleGetQuote = async () => {
+    try {
+      const values = await form.validateFields();
+      const params: CreatePositionParams = {
+        poolAddress,
+        xAmount: values.xAmount * 1e9,
+        yAmount: values.yAmount * 1e6,
+        minPrice: values.minPrice,
+        maxPrice: values.maxPrice,
+        strategyType: values.strategyType || "Spot"
+      };
+
+      setLoadingQuote(true);
+      const quote = await getPositionQuote(params);
+      if (quote) {
+        setQuoteResult(quote);
+        notification.success('Position quote obtained successfully');
+      }
+    } catch (error) {
+      console.error('Error getting position quote:', error);
+      notification.error('Failed to get position quote');
+    } finally {
+      setLoadingQuote(false);
     }
   };
 
@@ -90,7 +121,7 @@ const PositionTest: React.FC = () => {
       yAmount: values.yAmount * 1e6,
       minPrice: values.minPrice,
       maxPrice: values.maxPrice,
-      strategyType: "Spot"
+      strategyType: values.strategyType || "Spot"
     };
 
     setCreatingPosition(true);
@@ -98,16 +129,12 @@ const PositionTest: React.FC = () => {
       const positionResult = await createPosition(params);
       if (positionResult) {
         setResult(positionResult);
-        message.success(
-          <span>
-            Position created! <a href={positionResult.explorerUrl} target="_blank" rel="noopener noreferrer">View transaction</a>
-          </span>
-        );
+        notification.success(`Position created! View transaction: ${positionResult.explorerUrl}`);
         await loadWalletInfo();
       }
     } catch (error) {
       console.error('Error creating position:', error);
-      message.error('Failed to create position');
+      notification.error('Failed to create position');
     } finally {
       setCreatingPosition(false);
     }
@@ -145,7 +172,7 @@ const PositionTest: React.FC = () => {
           layout="vertical" 
           onFinish={handleCreatePosition}
           initialValues={{
-            strategyType: 'spot'
+            strategyType: 'Spot'
           }}
         >
           <Form.Item name="xAmount" label="SOL Amount" rules={[{ required: true, message: 'Please input SOL amount' }]}>
@@ -166,27 +193,52 @@ const PositionTest: React.FC = () => {
 
           <Form.Item name="strategyType" label="Strategy Type" rules={[{ required: true, message: 'Please select strategy' }]}>
             <Select>
-              <Option value="spot">Spot</Option>
-              <Option value="curve">Curve</Option>
-              <Option value="bid">Bid</Option>
-              <Option value="ask">Ask</Option>
+              <Option value="Spot">Spot</Option>
+              <Option value="Curve">Curve</Option>
+              <Option value="Bid Risk">Bid/Ask</Option>
             </Select>
           </Form.Item>
 
           <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={creatingPosition}
-              disabled={priceLoading || loading}
-            >
-              Create Position
-            </Button>
+            <Space>
+              <Button 
+                type="default" 
+                onClick={handleGetQuote}
+                loading={loadingQuote}
+                disabled={priceLoading || loading}
+              >
+                Get Quote
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={creatingPosition}
+                disabled={priceLoading || loading}
+              >
+                Create Position
+              </Button>
+            </Space>
           </Form.Item>
         </Form>
 
+        {quoteResult && (
+          <div style={{ marginTop: 24 }}>
+            <Divider />
+            <Title level={4}>Position Quote</Title>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text strong>Position Cost Information:</Text>
+              <Text>Bin Arrays Count: {quoteResult.binArraysCount}</Text>
+              <Text>Bin Array Cost: {quoteResult.binArrayCost} SOL</Text>
+              <Text>Position Count: {quoteResult.positionCount}</Text>
+              <Text>Position Cost: {quoteResult.positionCost} SOL</Text>
+              <Text>Total Cost: {(quoteResult.binArrayCost + quoteResult.positionCost).toFixed(9)} SOL</Text>
+            </Space>
+          </div>
+        )}
+
         {result && (
           <div style={{ marginTop: 16 }}>
+            <Divider />
             <Title level={5}>Position Created</Title>
             <Text>Position ID: {result.positionId}</Text>
             <br />

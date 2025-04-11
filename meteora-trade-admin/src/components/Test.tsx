@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Input, Button, Select, Typography, Space, Spin, message } from 'antd'
+import { Card, Input, Button, Select, Typography, Space, Spin } from 'antd'
 import { SwapOutlined } from '@ant-design/icons'
 import { 
   getJupiterQuote, 
@@ -13,6 +13,7 @@ import {
   WalletInfo,
   fetchTokenDecimals
 } from '../services/walletService'
+import notification from '../utils/notification'
 
 const { Option } = Select
 const { Text, Title } = Typography
@@ -41,7 +42,7 @@ const Test: React.FC = () => {
       setWalletInfo(info)
     } catch (error) {
       console.error('Error loading wallet info:', error)
-      message.error('Failed to load wallet information')
+      notification.error('Failed to load wallet information')
     } finally {
       setLoading(false)
     }
@@ -67,7 +68,7 @@ const Test: React.FC = () => {
 
   const getQuote = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-      message.error('Please enter a valid amount')
+      notification.error('Please enter a valid amount')
       return
     }
 
@@ -86,7 +87,7 @@ const Test: React.FC = () => {
       setQuote(quoteResponse)
     } catch (error) {
       console.error('Error getting quote:', error)
-      message.error('Failed to get swap quote')
+      notification.error('Failed to get swap quote')
     } finally {
       setQuoteLoading(false)
     }
@@ -94,7 +95,7 @@ const Test: React.FC = () => {
 
   const executeSwap = async () => {
     if (!quote) {
-      message.error('Please get a quote first')
+      notification.error('Please get a quote first')
       return
     }
 
@@ -102,10 +103,8 @@ const Test: React.FC = () => {
     try {
       const result = await executeJupiterSwap(quote)
       if (result) {
-        message.success(
-          <span>
-            Swap successful! <a href={result.explorerUrl} target="_blank" rel="noopener noreferrer">View transaction</a>
-          </span>
+        notification.success(
+          `Swap successful! View transaction: ${result.explorerUrl}`
         )
         // Refresh wallet info
         await loadWalletInfo()
@@ -114,7 +113,7 @@ const Test: React.FC = () => {
       }
     } catch (error) {
       console.error('Error executing swap:', error)
-      message.error('Failed to execute swap')
+      notification.error('Failed to execute swap')
     } finally {
       setSwapLoading(false)
     }

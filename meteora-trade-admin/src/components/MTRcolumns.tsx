@@ -1,5 +1,5 @@
 import { ProColumns } from "@ant-design/pro-components";
-import { PoolItem } from "./MTRPools";
+import { PoolItem } from "../services";
 import { Button, Tag, Tooltip } from "antd";
 
 export const columns: (
@@ -21,6 +21,21 @@ export const columns: (
     title: "Age",
     dataIndex: "age",
     width: 100,
+  },
+  {
+    title: "Bin Step",
+    dataIndex: "binStep",
+    valueType: "text",
+    width: 100,
+    sorter: (a, b) => a.binStep - b.binStep,
+  },
+  {
+    title: "Base Fee",
+    dataIndex: "baseFee",
+    valueType: "text",
+    width: 100,
+    sorter: (a, b) => a.baseFee - b.baseFee,
+    render: (_, record) => `${record.baseFee}%`,
   },
   {
     title: "Fee Ratio (24h)",
@@ -79,24 +94,10 @@ export const columns: (
       parseFloat(b.liquidity.replace(/[^0-9.-]+/g, "")),
   },
   {
-    title: "Holders",
-    dataIndex: "holders",
-    valueType: "text",
-    width: 90,
-  },
-  {
     title: "Links",
     valueType: "option",
     width: 120,
     render: (_, record) => [
-      <a
-        key="view"
-        href={record.meteoraLink}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Meteora
-      </a>,
       <a
         key="gmgn"
         href={record.gmgnLink}

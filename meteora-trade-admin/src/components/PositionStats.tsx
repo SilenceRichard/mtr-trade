@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
-import { Card, Spin, Empty, Typography, Collapse, Button, Switch, Space, message } from 'antd';
+import { Card, Spin, Empty, Typography, Collapse, Button, Switch, Space } from 'antd';
 import { SyncOutlined, CopyOutlined } from '@ant-design/icons';
 import { fetchWalletInfo, WalletInfo } from '../services/walletService';
 import { getAllUserPositions, PoolPositionInfo } from '../services/meteoraService';
 import PositionTable from './PositionTable';
 import { getPoolName } from '../services/tokenService';
+import notification from '../utils/notification';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -83,8 +84,8 @@ const PositionStats = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-      .then(() => message.success('Copied to clipboard'))
-      .catch(() => message.error('Failed to copy'));
+      .then(() => notification.success('Copied to clipboard'))
+      .catch(() => notification.error('Failed to copy'));
   };
 
   return (

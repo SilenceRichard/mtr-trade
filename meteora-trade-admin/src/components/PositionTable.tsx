@@ -1,8 +1,9 @@
-import { Table, Spin, Button, message, Popover } from "antd";
+import { Table, Spin, Button, Popover } from "antd";
 import { useEffect, useState } from "react";
 import { Position, removeLiquidity, claimFee, closePosition } from "../services/meteoraService";
 import { getJupiterQuote, executeJupiterSwap } from "../services/jupiterService";
-import { SOL_MINT, fetchTokenBalance, fetchTokenDecimals } from "../services/walletService";
+import { SOL_MINT, fetchTokenBalance } from "../services/walletService";
+import notification from "../utils/notification";
 
 interface PositionTableProps {
   positions: (Position & {
@@ -28,7 +29,6 @@ interface PositionWithSolFees extends Position {
 
 const PositionTable = ({
   positions,
-  loading,
   poolAddress,
 }: PositionTableProps) => {
   const [positionsWithFees, setPositionsWithFees] = useState<
@@ -40,14 +40,40 @@ const PositionTable = ({
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initialize with loading state
-    setPositionsWithFees(
-      positions.map((position) => ({
-        ...position,
-        feesLoading: true,
-        amountLoading: true,
-      }))
-    );
+    if (positions.length === 0) {
+      setPositionsWithFees([]);
+      return;
+    }
+
+    // Preserve previous values for positions that already exist
+    setPositionsWithFees(prevPositions => {
+      // Create a map of previous positions for quick lookup
+      const prevPositionsMap = new Map(
+        prevPositions.map(pos => [pos.publicKey, pos])
+      );
+      
+      return positions.map(position => {
+        const prevPosition = prevPositionsMap.get(position.publicKey);
+        
+        // If position already exists, preserve calculated values while updating base data
+        if (prevPosition && !prevPosition.feesLoading && !prevPosition.amountLoading) {
+          return {
+            ...position,
+            totalSolFees: prevPosition.totalSolFees,
+            totalAmountInSol: prevPosition.totalAmountInSol,
+            feesLoading: false,
+            amountLoading: false,
+          };
+        }
+        
+        // For new positions, set loading state
+        return {
+          ...position,
+          feesLoading: true,
+          amountLoading: true,
+        };
+      });
+    });
 
     const calculateValues = async () => {
       const updatedPositions = await Promise.all(
@@ -152,11 +178,7 @@ const PositionTable = ({
       setPositionsWithFees(updatedPositions);
     };
 
-    if (positions.length > 0) {
-      calculateValues();
-    } else {
-      setPositionsWithFees([]);
-    }
+    calculateValues();
   }, [positions]);
 
   const handleRemoveLiquidity = async (position: Position) => {
@@ -171,11 +193,11 @@ const PositionTable = ({
       );
 
       if (result) {
-        message.success(`流动性已移除，交易ID: ${result.txId}`);
+        notification.success(`流动性已移除，交易ID: ${result.txId}`);
       }
     } catch (error) {
       console.error("Error removing liquidity:", error);
-      message.error("移除流动性失败");
+      notification.error("移除流动性失败");
     } finally {
       setRemovingPosition(null);
     }
@@ -185,17 +207,14 @@ const PositionTable = ({
     setClaimingPosition(position.publicKey);
 
     try {
-      const result = await claimFee(
-        poolAddress,
-        position.publicKey
-      );
+      const result = await claimFee(poolAddress, position.publicKey);
 
       if (result) {
-        message.success(`手续费已领取，交易ID: ${result.txId}`);
+        notification.success(`手续费已领取，交易ID: ${result.txId}`);
       }
     } catch (error) {
       console.error("Error claiming fee:", error);
-      message.error("领取手续费失败");
+      notification.error("领取手续费失败");
     } finally {
       setClaimingPosition(null);
     }
@@ -203,56 +222,53 @@ const PositionTable = ({
 
   const handleSwapXToSol = async (position: PositionWithSolFees) => {
     if (!position.xMint) {
-      message.warning("找不到X代币的铸币地址");
+      notification.warning("找不到X代币的铸币地址");
       return;
     }
 
     setSwappingPosition(position.publicKey);
 
     try {
-      // Get the actual token balance from the wallet
+      // First check if we have any X tokens to swap
       const tokenBalance = await fetchTokenBalance(position.xMint);
-      const tokenDecimals = await fetchTokenDecimals(position.xMint);
-      
       if (tokenBalance <= 0) {
-        message.warning("钱包中没有可交换的X代币");
+        notification.warning("钱包中没有可交换的X代币");
+        setSwappingPosition(null);
         return;
       }
-      console.log("tokenBalance", tokenBalance, tokenDecimals);
-      const rawAmount = Math.floor(tokenBalance * Math.pow(10, tokenDecimals));
 
-      // Get quote for swapping X token to SOL
+      // Prepare the swap quote
       const quoteParams = {
         inputMint: position.xMint,
         outputMint: SOL_MINT,
-        amount: rawAmount.toString(),
-        slippageBps: 20, // 0.2% slippage
+        amount: Math.floor(tokenBalance).toString(),
+        slippageBps: 50, // 0.5% slippage
       };
 
+      // Get the quote
       const quote = await getJupiterQuote(quoteParams);
-
       if (!quote) {
-        message.error("无法获取交换报价");
+        notification.error("无法获取交换报价");
+        setSwappingPosition(null);
         return;
       }
 
-      // Display expected amount
-      const expectedOutput = parseFloat(quote.outAmount) / Math.pow(10, 9); // SOL has 9 decimals
-      message.info(`预计获得: ${expectedOutput.toFixed(6)} SOL`);
+      // Calculate expected output
+      const expectedOutput = parseFloat(quote.outAmount) / 1e9; // Assuming SOL has 9 decimals
+      notification.info(`预计获得: ${expectedOutput.toFixed(6)} SOL`);
 
       // Execute the swap
       const swapResult = await executeJupiterSwap(quote);
-
       if (swapResult) {
-        message.success(
+        notification.success(
           `交换成功，交易ID: ${swapResult.signature}`
         );
       } else {
-        message.error("交换失败");
+        notification.error("交换失败");
       }
     } catch (error) {
       console.error("Error swapping X to SOL:", error);
-      message.error("交换X代币到SOL失败");
+      notification.error("交换X代币到SOL失败");
     } finally {
       setSwappingPosition(null);
     }
@@ -262,17 +278,14 @@ const PositionTable = ({
     setClosingPosition(position.publicKey);
 
     try {
-      const result = await closePosition(
-        poolAddress,
-        position.publicKey
-      );
+      const result = await closePosition(poolAddress, position.publicKey);
 
       if (result) {
-        message.success(`头寸已关闭，交易ID: ${result.txId}`);
+        notification.success(`头寸已关闭，交易ID: ${result.txId}`);
       }
     } catch (error) {
       console.error("Error closing position:", error);
-      message.error("关闭头寸失败");
+      notification.error("关闭头寸失败");
     } finally {
       setClosingPosition(null);
     }
@@ -466,7 +479,7 @@ const PositionTable = ({
       ]}
       rowKey="publicKey"
       pagination={false}
-      loading={loading}
+      loading={false}
     />
   );
 };

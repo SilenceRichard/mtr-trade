@@ -177,6 +177,61 @@ export const createPosition = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * 获取创建头寸的报价
+ */
+export const getPositionQuote = async (req: Request, res: Response) => {
+  try {
+    const { poolAddress, xAmount, yAmount, maxPrice, minPrice, strategyType } = req.body;
+    // "Spot" | "Curve" | "Bid Risk"
+    const STRATEGY_TYPE = {
+      "Spot": StrategyType.Spot,
+      "Curve": StrategyType.Curve,
+      "Bid Risk": StrategyType.BidAsk
+    }
+    
+    if (!poolAddress || xAmount === undefined || yAmount === undefined || 
+        maxPrice === undefined || minPrice === undefined || !strategyType) {
+      return res.status(400).json({
+        success: false,
+        error: 'poolAddress, xAmount, yAmount, maxPrice, minPrice, and strategyType are required'
+      });
+    }
+    
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    const meteora = new MeteoraService(connection);
+    await meteora.initializeDLMMPool(poolAddress);
+    
+    // 将价格转换为Lamport格式
+    const maxPriceInLamports = meteora.toPricePerLamport(maxPrice);
+    const minPriceInLamports = meteora.toPricePerLamport(minPrice);
+    
+    // 将价格转换为bin ID
+    const maxBinId = meteora.getBinIdFromPrice(Number(maxPriceInLamports), true);
+    const minBinId = meteora.getBinIdFromPrice(Number(minPriceInLamports), true);
+   
+    const quoteResult = await meteora.getPositionQuote({
+      xAmount,
+      yAmount,
+      maxBinId,
+      minBinId,
+      strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE]
+    });
+    
+    res.json({
+      success: true,
+      data: quoteResult
+    });
+  } catch (error) {
+    console.error('Error getting position quote:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
 // Define Position interface with processed BN values
 export interface ProcessedPosition {
   publicKey: string;

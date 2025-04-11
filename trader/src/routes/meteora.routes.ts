@@ -15,6 +15,9 @@ router.get('/positions', meteoraController.getUserPositions as RequestHandler);
 // 创建流动性头寸
 router.post('/positions', meteoraController.createPosition as RequestHandler);
 
+// 获取创建头寸的报价
+router.post('/positions/quote', meteoraController.getPositionQuote as RequestHandler);
+
 // 获取用户在所有池中的仓位
 router.get('/positions/all', meteoraController.getAllUserPositions as RequestHandler);
 

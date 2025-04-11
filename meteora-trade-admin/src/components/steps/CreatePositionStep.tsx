@@ -1,7 +1,8 @@
 import { Typography, Button, Steps, Spin, Alert, Slider, InputNumber, Row, Col } from "antd";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PoolItem } from "../../services/poolService";
 import * as meteoraService from "../../services/meteoraService";
+import { debounce } from "lodash";
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
@@ -47,7 +48,102 @@ const CreatePositionStep = ({
   const [priceLoading, setPriceLoading] = useState(false);
   const [customMinPrice, setCustomMinPrice] = useState<number | null>(null);
   const [customMaxPrice, setCustomMaxPrice] = useState<number | null>(null);
+  const [minPricePercent, setMinPricePercent] = useState<number>(-20);
+  const [maxPricePercent, setMaxPricePercent] = useState<number>(20);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteResult, setQuoteResult] = useState<meteoraService.PositionQuoteResult | null>(null);
   
+  // Update price when percentage changes
+  const updatePriceFromPercent = (percent: number, type: 'min' | 'max') => {
+    if (!priceInfo) return;
+    
+    const realPrice = priceInfo.realPrice;
+    const newPrice = realPrice * (1 + percent / 100);
+    
+    if (type === 'min') {
+      setCustomMinPrice(newPrice);
+      setMinPricePercent(percent);
+    } else {
+      setCustomMaxPrice(newPrice);
+      setMaxPricePercent(percent);
+    }
+    
+    // Trigger quote update - will be debounced by fetchPositionQuote
+    if (customMinPrice && customMaxPrice && selectedPool && solAmount) {
+      fetchPositionQuote();
+    }
+  };
+
+  // Update percentage when price changes
+  const updatePercentFromPrice = (price: number | null, type: 'min' | 'max') => {
+    if (!priceInfo || !price) return;
+    
+    const realPrice = priceInfo.realPrice;
+    const percent = ((price / realPrice) - 1) * 100;
+    
+    if (type === 'min') {
+      setMinPricePercent(Number(percent.toFixed(2)));
+      setCustomMinPrice(price);
+    } else {
+      setMaxPricePercent(Number(percent.toFixed(2)));
+      setCustomMaxPrice(price);
+    }
+    
+    // Trigger quote update - will be debounced by fetchPositionQuote
+    if (customMinPrice && customMaxPrice && selectedPool && solAmount) {
+      fetchPositionQuote();
+    }
+  };
+
+  // Debounced function to fetch position quote
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchPositionQuote = useCallback(
+    debounce(async () => {
+      if (!selectedPool || !solAmount || !customMinPrice || !customMaxPrice) {
+        return;
+      }
+      
+      setQuoteLoading(true);
+      console.log("Fetching position quote with prices:", { min: customMinPrice, max: customMaxPrice });
+      
+      try {
+        let xAmount = 0; // token
+        let yAmount = 0; // SOL
+        
+        if (strategy === "Bid Risk") {
+          yAmount = solAmount * (10 ** 9);
+          xAmount = (walletInfo?.tokenBalance || 0) * (10 ** tokenDecimals) || 1;
+        } else {
+          if (!walletInfo?.tokenBalance) {
+            return;
+          }
+          xAmount = walletInfo.tokenBalance * (10 ** tokenDecimals);
+          yAmount = (solAmount / 2) * (10 ** 9);
+        }
+        
+        const quoteParams: meteoraService.CreatePositionParams = {
+          poolAddress: selectedPool.poolAddress,
+          xAmount: xAmount.toString(),
+          yAmount: yAmount.toString(),
+          maxPrice: customMaxPrice,
+          minPrice: customMinPrice,
+          strategyType: strategy
+        };
+        
+        const result = await meteoraService.getPositionQuote(quoteParams);
+        console.log("Position quote result:", result);
+        if (result) {
+          setQuoteResult(result);
+        }
+      } catch (error) {
+        console.error("Error fetching position quote:", error);
+      } finally {
+        setQuoteLoading(false);
+      }
+    }, 500),
+    [selectedPool, solAmount, strategy, walletInfo, tokenDecimals, customMinPrice, customMaxPrice]
+  );
+
   // Fetch pool price for position creation range calculation
   const fetchPoolPrice = async () => {
     if (!selectedPool) return;
@@ -65,10 +161,17 @@ const CreatePositionStep = ({
           // For Bid Risk, set a narrower range below current price
           maxPrice = realPrice;
           minPrice = realPrice * 0.8; // 20% below current price
+          setMaxPricePercent(0);
+          setMinPricePercent(-20);
         } else if (strategy === "Curve") {
           // For Curve, set a wider range
           maxPrice = realPrice * 1.3;
           minPrice = realPrice * 0.8;
+          setMaxPricePercent(30);
+          setMinPricePercent(-20);
+        } else {
+          setMaxPricePercent(20);
+          setMinPricePercent(-20);
         }
         
         // Set initial values for price range inputs
@@ -189,6 +292,13 @@ const CreatePositionStep = ({
     }
   }, [selectedPool, solAmount, strategy]);
 
+  // Automatically fetch quote when price range changes or is initially set
+  useEffect(() => {
+    if (customMinPrice && customMaxPrice && selectedPool && solAmount) {
+      fetchPositionQuote();
+    }
+  }, [customMinPrice, customMaxPrice, fetchPositionQuote, selectedPool, solAmount]);
+
   // Retry handler
   const handleRetryPosition = () => {
     setPositionState({ status: "idle" });
@@ -222,57 +332,112 @@ const CreatePositionStep = ({
     
     return (
       <div style={{ marginTop: 16, marginBottom: 16 }}>
-        <Row gutter={16} style={{ marginBottom: 8 }}>
-          <Col span={8}>
+        <Row style={{ marginBottom: 16 }}>
+          <Col span={24}>
+            <Text>Current Pool Price: {realPrice.toFixed(6)}</Text>
+          </Col>
+        </Row>
+        
+        <Row gutter={16} style={{ marginBottom: 16, alignItems: 'center' }}>
+          <Col span={4}>
             <Text>Min Price:</Text>
           </Col>
           <Col span={10}>
-            <Slider
-              min={realPrice * 0.1}
-              max={customMaxPrice}
-              value={customMinPrice}
-              onChange={(value) => setCustomMinPrice(value)}
-              step={0.000001}
-            />
-          </Col>
-          <Col span={6}>
             <InputNumber
               style={{ width: '100%' }}
               value={customMinPrice}
-              min={realPrice * 0.1}
+              min={0}
               max={customMaxPrice}
-              onChange={(value) => setCustomMinPrice(value)}
-              step={0.0000001}
-              precision={10}
+              onChange={(value) => updatePercentFromPrice(value, 'min')}
+              step={0.000001}
+              precision={6}
+            />
+          </Col>
+          <Col span={10}>
+            <InputNumber
+              style={{ width: '100%' }}
+              value={minPricePercent}
+              onChange={(value) => updatePriceFromPercent(Number(value), 'min')}
+              min={-100}
+              max={maxPricePercent}
+              step={0.1}
+              precision={1}
+              addonAfter="%"
             />
           </Col>
         </Row>
         
-        <Row gutter={16}>
-          <Col span={8}>
+        <Row gutter={16} style={{ marginBottom: 16, alignItems: 'center' }}>
+          <Col span={4}>
             <Text>Max Price:</Text>
           </Col>
           <Col span={10}>
-            <Slider
-              min={customMinPrice}
-              max={realPrice * 2}
-              value={customMaxPrice}
-              onChange={(value) => setCustomMaxPrice(value)}
-              step={0.000001}
-            />
-          </Col>
-          <Col span={6}>
             <InputNumber
               style={{ width: '100%' }}
               value={customMaxPrice}
-              min={customMinPrice}
-              max={realPrice * 2}
-              onChange={(value) => setCustomMaxPrice(value)}
-              step={0.0000001}
-              precision={10}
+              min={customMinPrice || 0}
+              onChange={(value) => updatePercentFromPrice(value, 'max')}
+              step={0.000001}
+              precision={6}
+            />
+          </Col>
+          <Col span={10}>
+            <InputNumber
+              style={{ width: '100%' }}
+              value={maxPricePercent}
+              onChange={(value) => updatePriceFromPercent(Number(value), 'max')}
+              min={minPricePercent}
+              step={0.1}
+              precision={1}
+              addonAfter="%"
             />
           </Col>
         </Row>
+        
+        <Row gutter={16} style={{ marginBottom: 8 }}>
+          <Col span={4}>
+            <Text>Price Range:</Text>
+          </Col>
+          <Col span={20}>
+            <Slider
+              range
+              min={realPrice * 0.1}
+              max={realPrice * 2}
+              value={[customMinPrice, customMaxPrice]}
+              onChange={(value) => {
+                if (Array.isArray(value)) {
+                  updatePercentFromPrice(value[0], 'min');
+                  updatePercentFromPrice(value[1], 'max');
+                  
+                  // Trigger quote update directly for slider
+                  if (selectedPool && solAmount) {
+                    fetchPositionQuote();
+                  }
+                }
+              }}
+              step={0.000001}
+            />
+          </Col>
+        </Row>
+        
+        {quoteLoading && (
+          <Row style={{ marginTop: 16 }}>
+            <Col span={24}>
+              <Spin size="small" style={{ marginRight: 8 }} />
+              <Text type="secondary">Getting position quote...</Text>
+            </Col>
+          </Row>
+        )}
+        
+        {quoteResult && (
+          <Row style={{ marginTop: 16 }}>
+            <Col span={24}>
+              <Text type="secondary">
+                This will create {quoteResult.positionCount} positions at a rent cost of {quoteResult.positionCost} SOL
+              </Text>
+            </Col>
+          </Row>
+        )}
       </div>
     );
   };

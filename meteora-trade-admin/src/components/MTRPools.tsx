@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { ProTable } from "@ant-design/pro-components";
-import { Button, Radio, message } from "antd";
+import { Button, Radio } from "antd";
 import type { ActionType } from "@ant-design/pro-components";
 import { columns } from "./MTRcolumns";
 import { MTRModal } from "./MTRModal";
+import notification from "../utils/notification";
 import { 
   fetchWalletInfo, 
   fetchPoolTokenBalance,
@@ -48,7 +49,7 @@ const MTRPools = () => {
     } catch (error) {
       console.error("Error fetching wallet info:", error);
       setLoadingWallet(false);
-      message.error("Failed to fetch wallet information");
+      notification.error("Failed to fetch wallet information");
     }
   };
 
@@ -108,7 +109,7 @@ const MTRPools = () => {
       } catch (error) {
         console.error("Failed to fetch API data:", error);
         setLoading(false);
-        message.error("Failed to fetch pool data");
+        notification.error("Failed to fetch pool data");
       }
     };
 
@@ -158,13 +159,39 @@ const MTRPools = () => {
       };
     } catch (error) {
       console.error("Error processing pool data:", error);
-      message.error("Failed to process data");
+      notification.error("Failed to process data");
 
       return {
         data: [],
         success: false,
         total: 0,
       };
+    }
+  };
+
+  // Handle refresh button click
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      const data = await fetchPools();
+      if (data) {
+        setApiData(data);
+        const filtered = filterPoolsByCategory(data, poolCategory);
+        setFilteredPools(filtered);
+        
+        if (actionRef.current) {
+          actionRef.current.reload();
+        }
+        
+        notification.success("Data refreshed successfully");
+      }
+      setRefreshing(false);
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
+      setRefreshing(false);
+      notification.error("Failed to refresh data");
     }
   };
 
@@ -263,25 +290,7 @@ const MTRPools = () => {
           <Button
             key="refresh"
             loading={refreshing}
-            onClick={async () => {
-              setRefreshing(true);
-              setLoading(true);
-              try {
-                const data = await fetchPools();
-                if (data) {
-                  setApiData(data);
-                  const filtered = filterPoolsByCategory(data, poolCategory);
-                  setFilteredPools(filtered);
-                  message.success("Data refreshed successfully");
-                }
-              } catch (error) {
-                console.error("Failed to refresh data:", error);
-                message.error("Failed to refresh data");
-              } finally {
-                setLoading(false);
-                setRefreshing(false);
-              }
-            }}
+            onClick={handleRefresh}
           >
             Refresh
           </Button>,

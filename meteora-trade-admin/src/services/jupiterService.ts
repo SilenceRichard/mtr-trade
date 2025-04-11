@@ -1,5 +1,5 @@
 import axios from "axios";
-import { message } from "antd";
+import notification from "../utils/notification";
 import { TRADER_API_URL } from "../constant";
 
 export interface QuoteParams {
@@ -51,12 +51,12 @@ export const getJupiterQuote = async (params: QuoteParams): Promise<QuoteRespons
     if (response.data.success) {
       return response.data.data;
     } else {
-      message.error(`Failed to get Jupiter quote: ${response.data.error}`);
+      notification.error("Failed to get Jupiter quote", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error fetching Jupiter quote:", error);
-    message.error("Failed to get Jupiter quote");
+    notification.error("Failed to get Jupiter quote");
     return null;
   }
 };
@@ -72,12 +72,12 @@ export const executeJupiterSwap = async (quoteResponse: QuoteResponse): Promise<
     if (response.data.success) {
       return response.data.data;
     } else {
-      message.error(`Failed to execute swap: ${response.data.error}`);
+      notification.error("Failed to execute swap", response.data.error);
       return null;
     }
   } catch (error) {
     console.error("Error executing Jupiter swap:", error);
-    message.error("Failed to execute swap");
+    notification.error("Failed to execute swap");
     return null;
   }
 }; 

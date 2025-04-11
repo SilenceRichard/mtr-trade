@@ -1,5 +1,6 @@
 import { Typography, Button } from "antd";
 import { PoolItem } from "../../services/poolService";
+import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
 
@@ -14,6 +15,8 @@ const FinishStep = ({
   solAmount,
   handleOk
 }: FinishStepProps) => {
+  const navigate = useNavigate();
+  
   return (
     <div>
       <Title level={5}>Position Created Successfully</Title>
@@ -28,8 +31,9 @@ const FinishStep = ({
         <Button 
           type="primary" 
           onClick={() => {
-            // Just transition to positions view without closing modal directly
+            // Close the modal and navigate to positions page
             handleOk();
+            navigate('/positions');
           }}
         >
           View Positions

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { message } from "antd";
+import notification from "../utils/notification";
 import { TRADER_API_URL } from "../constant";
 
 export const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -19,12 +19,12 @@ export const fetchWalletPublicKey = async (): Promise<string | null> => {
     if (response.data.success) {
       return response.data.data.publicKey;
     } else {
-      message.error("Failed to get wallet public key");
+      notification.error("Failed to get wallet public key");
       return null;
     }
   } catch (error) {
     console.error("Error fetching wallet public key:", error);
-    message.error("Failed to get wallet public key");
+    notification.error("Failed to get wallet public key");
     return null;
   }
 };
@@ -69,7 +69,7 @@ export const fetchWalletInfo = async (): Promise<WalletInfo | null> => {
     };
   } catch (error) {
     console.error("Error fetching wallet info:", error);
-    message.error("Failed to fetch wallet information");
+    notification.error("Failed to fetch wallet information");
     return null;
   }
 };

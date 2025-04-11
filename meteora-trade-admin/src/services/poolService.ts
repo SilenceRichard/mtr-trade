@@ -1,5 +1,5 @@
 import axios from "axios";
-import { message } from "antd";
+import notification from "../utils/notification";
 import { POOL_API_URL } from "../constant";
 
 // Matching the structure from formatPoolSummary in analyzer.js
@@ -63,7 +63,7 @@ export const fetchPools = async (): Promise<ApiResponse | null> => {
     // Validate API response structure
     if (!response.data) {
       console.error("API response data is empty");
-      message.error("No data received from API");
+      notification.error("No data received from API");
       return null;
     }
 
@@ -92,7 +92,7 @@ export const fetchPools = async (): Promise<ApiResponse | null> => {
     return response.data;
   } catch (error) {
     console.error("Failed to fetch pool data:", error);
-    message.error("Failed to fetch pool data");
+    notification.error("Failed to fetch pool data");
     return null;
   }
 };
