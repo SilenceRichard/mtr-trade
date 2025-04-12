@@ -253,6 +253,7 @@ export const MTRModal = (props: {
               strategy={strategy}
               walletInfo={localWalletInfo}
               tokenDecimals={tokenDecimals}
+              refreshWalletBalance={refreshWalletBalance}
             />
           );
         case 1:
@@ -297,6 +298,7 @@ export const MTRModal = (props: {
             strategy={strategy}
             walletInfo={localWalletInfo}
             tokenDecimals={tokenDecimals}
+            refreshWalletBalance={refreshWalletBalance}
           />
         );
       case 2:

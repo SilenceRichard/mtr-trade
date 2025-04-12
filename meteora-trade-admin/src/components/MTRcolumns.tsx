@@ -28,6 +28,11 @@ export const columns: (
     valueType: "text",
     width: 100,
     sorter: (a, b) => a.binStep - b.binStep,
+    render: (_, record) => (
+      <span style={{ color: record.binStep >= 80 ? '#52c41a' : 'inherit' }}>
+        {record.binStep}
+      </span>
+    ),
   },
   {
     title: "Base Fee",

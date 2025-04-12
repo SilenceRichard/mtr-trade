@@ -20,6 +20,7 @@ export interface CreatePositionStepProps {
     tokenBalance?: number;
   };
   tokenDecimals?: number;
+  refreshWalletBalance?: () => Promise<void>;
 }
 
 interface PositionState {
@@ -40,7 +41,8 @@ const CreatePositionStep = ({
   setIsExecuting,
   strategy,
   walletInfo,
-  tokenDecimals = 0
+  tokenDecimals = 0,
+  refreshWalletBalance
 }: CreatePositionStepProps) => {
   const [positionState, setPositionState] = useState<PositionState>({ status: "idle" });
   const [currentSubStep, setCurrentSubStep] = useState(0);
@@ -237,7 +239,6 @@ const CreatePositionStep = ({
         // For Bid Risk, use all SOL for y and ensure x is set to a proper amount (not 0)
         yAmount = solAmount * (10 ** 9);
         // We should still provide a small amount of token X to ensure the position is created correctly
-        xAmount = (walletInfo?.tokenBalance || 0) * (10 ** tokenDecimals) || 1;
       } else {
         // For Spot or Curve, use 50% SOL and 50% token value
         // Make sure we're using the actual token balance, not a placeholder
@@ -311,9 +312,15 @@ const CreatePositionStep = ({
   }, [customMinPrice, customMaxPrice, fetchPositionQuote, selectedPool, solAmount]);
 
   // Retry handler
-  const handleRetryPosition = () => {
+  const handleRetryPosition = async () => {
     // Reset position state and proceed with position creation
     setPositionState({ status: "idle" });
+    
+    // Refresh wallet balance before retrying
+    if (refreshWalletBalance) {
+      await refreshWalletBalance();
+    }
+    
     createPosition().catch(console.error);
   };
 
@@ -588,10 +595,10 @@ const CreatePositionStep = ({
             Finish
           </Button>
         )}
-        {strategy !== "Bid Risk" && (
+        {strategy !== "Bid Risk" && currentStep < 2 && (
           <Button
             onClick={() => setCurrentStep(currentStep - 1)}
-            style={{ marginRight: 8 }}
+            style={{ marginRight: 8, marginLeft: 16 }}
           >
             Back
           </Button>
