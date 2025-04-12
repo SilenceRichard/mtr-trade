@@ -263,6 +263,19 @@ export class MeteoraService {
     }
   }
 
+  /**
+   * 获取流动性池的token信息
+   * @returns tokenX和tokenY的mint地址信息
+   */
+  getTokenInfo() {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+    
+    return {
+      tokenXMint: this.dlmmPool.tokenX.mint.toString(),
+      tokenYMint: this.dlmmPool.tokenY.mint.toString()
+    };
+  }
+
   async claimFee(
     user: Keypair,
     positionAddress: string

@@ -31,6 +31,7 @@ export const MTRModal = (props: {
   const [strategy, setStrategy] = useState<"Spot" | "Curve" | "Bid Risk">("Spot");
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [slippageBps, setSlippageBps] = useState<number>(100); // Default 1% slippage (100 basis points)
   
   // Swap states
   const [swapStatus, setSwapStatus] = useState<"idle" | "loading" | "success" | "failed">("idle");
@@ -120,6 +121,7 @@ export const MTRModal = (props: {
     setSwapResult(null);
     setPriceInfo(null);
     setLocalWalletInfo(props.walletInfo);
+    setSlippageBps(100); // Reset slippage to default 1%
   };
   
   // Start execution process
@@ -152,7 +154,7 @@ export const MTRModal = (props: {
         inputMint: "So11111111111111111111111111111111111111112", // SOL mint address
         outputMint: props.selectedPool.tokenInfo.address, // Token mint address from selected pool
         amount: swapAmount,
-        slippageBps: 100, // 0.5% slippage
+        slippageBps: slippageBps, // Use slippage from state
       };
       
       const quote = await getJupiterQuote(quoteParams);
@@ -171,16 +173,39 @@ export const MTRModal = (props: {
   
   // Execute swap with the obtained quote
   const executeSwap = async () => {
-    if (!swapQuote) return;
+    if (!swapQuote || !props.selectedPool?.tokenInfo.address) return;
     
     setSwapStatus("loading");
     
     try {
-      const result = await executeJupiterSwap(swapQuote);
+      // Get a fresh quote with the latest slippage value
+      const swapAmount = (solAmount! / 2 * (10 ** solDecimals)).toString();
+      
+      // Get a new quote with the current slippage value
+      const quoteParams = {
+        inputMint: "So11111111111111111111111111111111111111112", // SOL mint address
+        outputMint: props.selectedPool.tokenInfo.address, // Token mint address from selected pool
+        amount: swapAmount,
+        slippageBps: slippageBps, // Use current slippage from state
+      };
+      
+      // Get a fresh quote with current slippage
+      const updatedQuote = await getJupiterQuote(quoteParams);
+      
+      if (!updatedQuote) {
+        setSwapStatus("failed");
+        return;
+      }
+      
+      // Execute with the fresh quote that has current slippage
+      const result = await executeJupiterSwap(updatedQuote);
       
       if (result) {
         setSwapResult(result);
         setSwapStatus("success");
+        
+        // Update the quote state with latest quote
+        setSwapQuote(updatedQuote);
         
         // Refresh wallet balance after successful swap
         await refreshWalletBalance();
@@ -257,6 +282,8 @@ export const MTRModal = (props: {
             executeSwap={executeSwap}
             setCurrentStep={setCurrentStep}
             setIsExecuting={setIsExecuting}
+            slippageBps={slippageBps}
+            setSlippageBps={setSlippageBps}
           />
         );
       case 1:

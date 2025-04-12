@@ -13,6 +13,8 @@ export interface Position {
   owner: string;
   lowerBinId: number;
   upperBinId: number;
+  poolName: string;
+  openValue: number;
   totalXAmount: string;
   totalYAmount: string;
   feeX: string;
@@ -46,8 +48,10 @@ export interface PoolPositionInfo {
 
 export interface CreatePositionParams {
   poolAddress: string;
+  poolName?: string;
   xAmount: string | number;
   yAmount: string | number;
+  openValue?: number;
   maxPrice: number;
   minPrice: number;
   strategyType: string;
@@ -290,6 +294,53 @@ export const closePosition = async (
   } catch (error) {
     console.error("Error closing position:", error);
     notification.error("Failed to close position");
+    return null;
+  }
+};
+
+// Update position by position_id
+export interface UpdatePositionParams {
+  profit?: number;
+  profit_rate?: number;
+  fees?: number;
+  duration_seconds?: number;
+  close_time?: Date | string; // when position was closed
+}
+
+export interface UpdatePositionResult {
+  id: number;
+  wallet_address: string;
+  pool_address: string;
+  position_id: string;
+  open_value: number;
+  profit: number;
+  profit_rate: number;
+  fees: number;
+  open_time: string;
+  close_time?: string;
+  duration_seconds: number;
+}
+
+export const updatePosition = async (
+  positionId: string, 
+  updates: UpdatePositionParams
+): Promise<UpdatePositionResult | null> => {
+  try {
+    const response = await axios.put<{ success: boolean; data: UpdatePositionResult; error?: string }>(
+      `${TRADER_API_URL}/meteora/positions/${positionId}`,
+      updates
+    );
+    
+    if (response.data.success) {
+      notification.success("Position updated successfully");
+      return response.data.data;
+    } else {
+      notification.error("Failed to update position", response.data.error);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error updating position:", error);
+    notification.error("Failed to update position");
     return null;
   }
 };

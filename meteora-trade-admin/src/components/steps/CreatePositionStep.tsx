@@ -201,6 +201,15 @@ const CreatePositionStep = ({
       return;
     }
     
+    // Prevent creation if position count is greater than 1
+    if (quoteResult && quoteResult.positionCount > 1) {
+      setPositionState({ 
+        status: "failed", 
+        error: "Cannot create position with position count greater than 1" 
+      });
+      return;
+    }
+    
     setPositionState({ status: "pending" });
     
     try {
@@ -250,6 +259,8 @@ const CreatePositionStep = ({
         poolAddress: selectedPool.poolAddress,
         xAmount: xAmount.toString(),
         yAmount: yAmount.toString(),
+        openValue: solAmount,
+        poolName: selectedPool.poolName,
         maxPrice,
         minPrice,
         strategyType: strategy
@@ -301,6 +312,7 @@ const CreatePositionStep = ({
 
   // Retry handler
   const handleRetryPosition = () => {
+    // Reset position state and proceed with position creation
     setPositionState({ status: "idle" });
     createPosition().catch(console.error);
   };
@@ -574,6 +586,14 @@ const CreatePositionStep = ({
             onClick={handleFinish}
           >
             Finish
+          </Button>
+        )}
+        {strategy !== "Bid Risk" && (
+          <Button
+            onClick={() => setCurrentStep(currentStep - 1)}
+            style={{ marginRight: 8 }}
+          >
+            Back
           </Button>
         )}
         <Button 

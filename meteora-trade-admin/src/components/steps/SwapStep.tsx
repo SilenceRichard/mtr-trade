@@ -1,6 +1,7 @@
-import { Typography, Button } from "antd";
+import { Typography, Button, InputNumber, Space, Tooltip } from "antd";
 import { PoolItem } from "../../services/poolService";
 import { QuoteResponse } from "../../services/jupiterService";
+import { InfoCircleOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
@@ -14,6 +15,8 @@ export interface SwapStepProps {
   executeSwap: () => void;
   setCurrentStep: (step: number) => void;
   setIsExecuting: (executing: boolean) => void;
+  slippageBps: number;
+  setSlippageBps: (slippage: number) => void;
 }
 
 const SwapStep = ({
@@ -25,8 +28,29 @@ const SwapStep = ({
   initiateSwap,
   executeSwap,
   setCurrentStep,
-  setIsExecuting
+  setIsExecuting,
+  slippageBps,
+  setSlippageBps
 }: SwapStepProps) => {
+  // Convert basis points to percentage for display
+  const slippagePercent = slippageBps / 100;
+  
+  // Handler for slippage change
+  const handleSlippageChange = (value: number | null) => {
+    if (value !== null) {
+      // Convert percentage to basis points
+      setSlippageBps(value * 100);
+      
+      // Request a new quote if we already have a quote and we're not in loading state
+      if (swapQuote && swapStatus !== "loading") {
+        // Use setTimeout to ensure state is updated before initiating swap
+        setTimeout(() => {
+          initiateSwap();
+        }, 0);
+      }
+    }
+  };
+  
   return (
     <div>
       <Title level={5}>Swapping Tokens</Title>
@@ -45,6 +69,28 @@ const SwapStep = ({
         )}
         <Text>Fee: {selectedPool?.baseFee}%</Text>
         <br />
+        
+        {/* Slippage Setting */}
+        <div style={{ marginTop: 8, marginBottom: 8 }}>
+          <Space>
+            <Text>滑点容差:</Text>
+            <InputNumber
+              min={0.01}
+              max={10}
+              step={0.01}
+              value={slippagePercent}
+              onChange={handleSlippageChange}
+              formatter={(value) => `${value}%`}
+              parser={(value) => value ? parseFloat(value.replace('%', '')) : 1}
+              style={{ width: 100 }}
+              // disabled={swapStatus === "loading" || swapStatus === "success"}
+            />
+            <Tooltip title="滑点容差设置：1 bp = 0.01%">
+              <InfoCircleOutlined />
+            </Tooltip>
+          </Space>
+        </div>
+        
         <Text>Status: {
           swapStatus === "idle" ? "Ready to swap" :
           swapStatus === "loading" ? "Processing..." :

@@ -6,6 +6,8 @@ import { getWallet } from '../services/wallet';
 import { LbPosition, StrategyType } from '@meteora-ag/dlmm';
 import * as DLMM from '@meteora-ag/dlmm';
 import { PublicKey } from '@solana/web3.js';
+import { walletRepository, positionRepository } from '../repositories';
+import { withTransaction } from '../db/transaction';
 
 /**
  * 初始化Meteora流动性池
@@ -125,7 +127,7 @@ export const getUserPositions = async (req: Request, res: Response) => {
  */
 export const createPosition = async (req: Request, res: Response) => {
   try {
-    const { poolAddress, xAmount, yAmount, maxPrice, minPrice, strategyType } = req.body;
+    const { poolName, poolAddress, xAmount, yAmount, openValue, maxPrice, minPrice, strategyType } = req.body;
     // "Spot" | "Curve" | "Bid Risk"
     const STRATEGY_TYPE = {
       "Spot": StrategyType.Spot,
@@ -160,6 +162,41 @@ export const createPosition = async (req: Request, res: Response) => {
       minBinId,
       strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE]
     });
+
+    // 使用事务保证数据一致性
+    const walletAddress = wallet.publicKey.toString();
+    
+    try {
+      await withTransaction(async (client) => {
+        // 先创建钱包记录（如果不存在）
+        const walletResult = await walletRepository.upsertWalletWithClient({
+          wallet_address: walletAddress,
+          profit_rate: 0, // Initial value
+          fees: 0         // Initial value
+        }, client);
+        
+        console.log('Wallet created/updated:', walletResult);
+        
+        // 然后创建头寸记录
+        const positionResult = await positionRepository.insertPositionWithClient({
+          wallet_address: walletAddress,
+          pool_address: poolAddress,
+          pool_name: poolName,
+          position_id: result.positionAddress,
+          open_value: openValue,
+          profit: 0,       // 初始利润为0
+          profit_rate: 0,  // 初始利润率为0
+          fees: 0,         // 初始手续费为0
+          open_time: new Date(),
+          duration_seconds: 0
+        }, client);
+        
+        console.log('Position created:', positionResult);
+      });
+    } catch (dbError) {
+      console.error('Database transaction error:', dbError);
+      throw dbError;
+    }
     
     res.json({
       success: true,
@@ -314,6 +351,17 @@ export const getAllUserPositions = async (req: Request, res: Response): Promise<
       new PublicKey(walletAddress as string)
     );
     
+    // 收集所有position ID，用来一次性查询pool names
+    const allPositionIds: string[] = [];
+    Array.from(allPositions.entries()).forEach(([_, positionInfo]) => {
+      positionInfo.lbPairPositionsData.forEach(pos => {
+        allPositionIds.push(pos.publicKey.toString());
+      });
+    });
+    
+    // 批量获取所有position对应的pool name和open_value
+    const positionDataMap = await positionRepository.getPositionDataByIds(allPositionIds);
+    
     // 处理结果为更友好的格式
     const positions = Array.from(allPositions.entries()).map(([lbPairAddress, positionInfo]) => {
       return {
@@ -329,9 +377,17 @@ export const getAllUserPositions = async (req: Request, res: Response): Promise<
           decimals: positionInfo.tokenY.mint.decimals,
           amount: positionInfo.tokenY.amount.toString()
         },
-        positions: positionInfo.lbPairPositionsData.map(pos => ({
-          ...processPositionData(pos)
-        }))
+        positions: positionInfo.lbPairPositionsData.map(pos => {
+          const processedPos = processPositionData(pos);
+          const posKey = processedPos.publicKey;
+          const positionData = positionDataMap[posKey] || { poolName: '', openValue: 0 };
+          
+          return {
+            ...processedPos,
+            poolName: positionData.poolName,
+            openValue: positionData.openValue
+          };
+        })
       };
     });
 
@@ -402,6 +458,37 @@ export const closePosition = async (req: Request, res: Response) => {
     
     const txId = await meteora.closePosition(wallet, positionAddress);
     
+    // Update position record in database with close_time
+    try {
+      await withTransaction(async (client) => {
+        // First, get the current position to access the open_time
+        const currentPosition = await positionRepository.getPositionByIdWithClient(positionAddress, client);
+        
+        if (!currentPosition) {
+          console.warn(`Position with ID ${positionAddress} not found in database when closing`);
+        } else {
+          const closeTime = new Date();
+          const openTime = new Date(currentPosition.open_time);
+          // Calculate duration in seconds
+          const durationSeconds = Math.floor((closeTime.getTime() - openTime.getTime()) / 1000);
+          
+          const updatedPosition = await positionRepository.updatePositionWithClient(
+            positionAddress, 
+            { 
+              close_time: closeTime,
+              duration_seconds: durationSeconds
+            }, 
+            client
+          );
+          
+          console.log(`Position closed with duration: ${durationSeconds} seconds`);
+        }
+      });
+    } catch (dbError) {
+      console.error('Error updating position close_time:', dbError);
+      // Continue anyway since the blockchain tx succeeded
+    }
+    
     res.json({
       success: true,
       data: {
@@ -449,6 +536,59 @@ export const claimFee = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error claiming fee:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+/**
+ * 更新头寸信息
+ */
+export const updatePosition = async (req: Request, res: Response) => {
+  try {
+    const { position_id } = req.params;
+    const updates = req.body;
+    
+    if (!position_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Position ID is required'
+      });
+    }
+    
+    // 检查更新内容是否有效
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No update data provided'
+      });
+    }
+    
+    // 使用事务更新头寸，确保数据一致性
+    let updatedPosition;
+    try {
+      await withTransaction(async (client) => {
+        updatedPosition = await positionRepository.updatePositionWithClient(position_id, updates, client);
+        
+        if (!updatedPosition) {
+          throw new Error(`Position with ID ${position_id} not found`);
+        }
+        
+        console.log('Position updated:', updatedPosition);
+      });
+    } catch (dbError) {
+      console.error('Database transaction error:', dbError);
+      throw dbError;
+    }
+    
+    res.json({
+      success: true,
+      data: updatedPosition
+    });
+  } catch (error) {
+    console.error('Error updating position:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

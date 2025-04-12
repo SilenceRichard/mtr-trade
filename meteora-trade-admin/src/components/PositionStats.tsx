@@ -5,7 +5,6 @@ import { SyncOutlined, CopyOutlined } from '@ant-design/icons';
 import { fetchWalletInfo, WalletInfo } from '../services/walletService';
 import { getAllUserPositions, PoolPositionInfo } from '../services/meteoraService';
 import PositionTable from './PositionTable';
-import { getPoolName } from '../services/tokenService';
 import notification from '../utils/notification';
 
 const { Title, Text } = Typography;
@@ -34,15 +33,15 @@ const PositionStats = () => {
       if (wallet?.publicKey) {
         const allPositions = await getAllUserPositions(wallet.publicKey);
         // Fetch pool names for each position
-        const enhancedPositions = await Promise.all((allPositions || []).map(async (position) => {
-          const poolName = await getPoolName(position.tokenX.mint, position.tokenY.mint);
+        const enhancedPositions = allPositions?.map((position) => {
+          const poolName = position?.positions[0]?.poolName || '';
           return {
             ...position,
             poolName
           };
-        }));
+        });
         
-        setPoolPositions(enhancedPositions);
+        setPoolPositions(enhancedPositions || []);
       }
       
       setLastRefreshed(new Date());
@@ -183,13 +182,20 @@ const PositionStats = () => {
                     key={index}
                   >
                     <PositionTable 
-                      positions={poolInfo.positions.map(position => ({
-                        ...position,
-                        xDecimals: poolInfo.tokenX.decimals,
-                        yDecimals: poolInfo.tokenY.decimals,
-                        xMint: poolInfo.tokenX.mint,
-                        yMint: poolInfo.tokenY.mint
-                      }))}
+                      positions={poolInfo.positions.map(position => {
+                        // Extract token names from poolName
+                        const [xTokenName, yTokenName] = poolInfo.poolName?.split('/') || ['', ''];
+                        
+                        return {
+                          ...position,
+                          xDecimals: poolInfo.tokenX.decimals,
+                          yDecimals: poolInfo.tokenY.decimals,
+                          xMint: poolInfo.tokenX.mint,
+                          yMint: poolInfo.tokenY.mint,
+                          xTokenName,
+                          yTokenName
+                        };
+                      })}
                       loading={loading}
                       poolAddress={poolInfo.lbPairAddress}
                     />

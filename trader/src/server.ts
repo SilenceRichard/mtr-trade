@@ -4,6 +4,7 @@ import walletRoutes from './routes/wallet.routes';
 import jupiterRoutes from './routes/jupiter.routes';
 import meteoraRoutes from './routes/meteora.routes';
 import tokenRoutes from './routes/token.routes';
+import { runMigrations } from './db/migration';
 
 const app = express();
 const port = process.env.PORT || 4001;
@@ -17,6 +18,15 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/jupiter', jupiterRoutes);
 app.use('/api/meteora', meteoraRoutes);
 app.use('/api/token', tokenRoutes);
+
+// Initialize database
+(async () => {
+  try {
+    await runMigrations();
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
+})();
 
 // Start server
 app.listen(port, () => {
