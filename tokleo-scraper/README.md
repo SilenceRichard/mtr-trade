@@ -126,4 +126,99 @@ Analysis of 83 pools from Tokleo.com
 
 ## License
 
+MIT
+
+## EC2 Deployment Guide
+
+### 1. Launch an EC2 Instance
+
+1. Log in to your AWS console
+2. Launch an EC2 instance (t2.medium or larger recommended)
+   - Supported operating systems:
+     - Ubuntu/Debian (Amazon Linux 2 AMI)
+     - Amazon Linux 2/Amazon Linux 2023
+3. Configure security group to allow SSH (port 22)
+4. Create and download your key pair
+
+### 2. Connect to your EC2 Instance
+
+```bash
+ssh -i your-key.pem ec2-user@your-ec2-public-dns   # For Amazon Linux
+# OR
+ssh -i your-key.pem ubuntu@your-ec2-public-dns     # For Ubuntu
+```
+
+### 3. Set Up the Environment
+
+Clone the repository and run the setup script:
+
+```bash
+# Install Git if needed
+sudo apt install -y git     # Ubuntu
+# OR
+sudo yum install -y git     # Amazon Linux
+
+# Clone repository
+git clone https://github.com/your-username/tokleo-scraper.git
+cd tokleo-scraper
+
+# Make setup script executable
+chmod +x setup-ec2.sh
+
+# Run setup script (works with both Ubuntu and Amazon Linux)
+./setup-ec2.sh
+```
+
+### 4. Verify Installation
+
+Test that Puppeteer works correctly on your EC2 instance:
+
+```bash
+node test-puppeteer.js
+```
+
+If successful, you should see a confirmation message and an `example.png` file created.
+
+### 5. Run the Scraper
+
+```bash
+node scraper.js
+```
+
+### 6. Set Up as a Scheduled Task (Optional)
+
+To run the scraper on a schedule using cron:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add a line to run every 6 hours (at 0:00, 6:00, 12:00, and 18:00)
+0 */6 * * * cd /path/to/tokleo-scraper && node scraper.js >> scraper.log 2>&1
+```
+
+## Troubleshooting
+
+### Common Issues:
+
+1. **Browser Launch Error**: Ensure all dependencies are installed correctly using the setup script
+2. **Memory Issues**: Consider increasing the EC2 instance size if you encounter memory problems
+3. **Timeout Errors**: Check your network configuration and increase timeout values in the code
+
+### Debugging:
+
+Check the error screenshots and HTML dumps created by the scraper:
+- `error-screenshot.png`
+- `error-page.html`
+- `no-cards-screenshot.png`
+- `page-content.html`
+
+## Output Files
+
+The scraper generates two main output files:
+- `tokleo-raw-data.json`: Raw HTML/text data from the main container
+- `tokleo-structured-data.json`: Structured data for all pools
+
+## License
+
 MIT 
