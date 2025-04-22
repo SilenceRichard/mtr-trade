@@ -1,6 +1,6 @@
 # Tokleo Pool Analysis Report
 
-Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
+Analysis of 87 pools from [https://tokleo.com/](https://tokleo.com/)
 
 
 
@@ -26,7 +26,7 @@ Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
 该类别暂无池子。
 
 
-## 🌊 新兴高潜力池 - Emerging High Potential Pools (1)
+## 🌊 新兴高潜力池 - Emerging High Potential Pools (2)
 
 筛选条件：
 - 池子年龄 < 24小时（新池子）
@@ -36,7 +36,8 @@ Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
 
 | 池子名称 | 年龄 | Bin Step | Base Fee | 费率/TVL | 30分钟收益率 | 30分钟变化 | 1H变化率 | 链接 |
 | ---- | --- | -------- | -------- | ------- | -------- | ---------- | -------- | ----- |
-| Fartcoin2/SOL | 4 hours | 100 | 2% | 8.80% | 10.20%/H | +2661% | +1450% | [Meteora](https://app.meteora.ag/dlmm/HMChRbjmwTnChQyogPLto2MzQvLUxgBBwmG3AHRKH1Ms)<br>[GMGN](https://gmgn.ai/sol/token/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump) |
+| Fartcoin2/SOL | 5 hours | 200 | 2% | 61.20% | 6.50%/H | +155% | +146% | [Meteora](https://app.meteora.ag/dlmm/6k3WXgkJv16aWpGD6i5hBA8j4gLPMb71kmLgon5eetUB)<br>[GMGN](https://gmgn.ai/sol/token/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump) |
+| Fartcoin2/SOL | 5 hours | 100 | 2% | 25.50% | 13.40%/H | +1156% | +982% | [Meteora](https://app.meteora.ag/dlmm/HMChRbjmwTnChQyogPLto2MzQvLUxgBBwmG3AHRKH1Ms)<br>[GMGN](https://gmgn.ai/sol/token/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump) |
 
 
 ## 📊 其他池子 - Other Pools
@@ -47,19 +48,19 @@ Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
 
 | 池子名称 | 年龄 | Bin Step | Base Fee | 费率/TVL | 30分钟收益率 | 30分钟变化 | 1H变化率 | 链接 |
 | ---- | --- | -------- | -------- | ------- | -------- | ---------- | -------- | ----- |
-| POSEIDON/SOL | 11 hours | 100 | 2% | 868.00% | 0.90%/H | -98% | -91% | [Meteora](https://app.meteora.ag/dlmm/2tFWbfWEGgsWWUxtxnm76AW3ur9AUiKjaCTyXAMBpxo1)<br>[GMGN](https://gmgn.ai/sol/token/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP) |
-| CODE/SOL | 17 hours | 100 | 5% | 233.10% | 3.70%/H | -62% | -68% | [Meteora](https://app.meteora.ag/dlmm/DLRgG6dPcbhJh8sVp2qFzZK3MTBJBmf1neoC3DHJtyUZ)<br>[GMGN](https://gmgn.ai/sol/token/Fc7tEqyfHPoWQXdiAqx62d7WeuH7Zq1DHwa2ihDpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/Fc7tEqyfHPoWQXdiAqx62d7WeuH7Zq1DHwa2ihDpump) |
-| Ghat/SOL | 14 hours | 200 | 2% | 218.70% | 0.00%/H | 0% | 0% | [Meteora](https://app.meteora.ag/dlmm/DNa581kMc1kREBctS9W8kN27SrY1yMoJP9STuUwNGi1r)<br>[GMGN](https://gmgn.ai/sol/token/8ByQthE3cM4uA8mB8RTqy6q2f1EobSrJWmzhTbjYcWTt)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8ByQthE3cM4uA8mB8RTqy6q2f1EobSrJWmzhTbjYcWTt) |
-| CUCK/SOL | 18 hours | 125 | 5% | 161.30% | 1.80%/H | -73% | -76% | [Meteora](https://app.meteora.ag/dlmm/46FooCw85Zuww21PcyHyghs2qd6bH96EyzKrQy1BaDPH)<br>[GMGN](https://gmgn.ai/sol/token/J5DzAP6j17bXBXykvkQVM5ntfyWAdL88okBQvDH9pump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/J5DzAP6j17bXBXykvkQVM5ntfyWAdL88okBQvDH9pump) |
-| TNN/SOL | 28 hours | 100 | 2% | 81.20% | 2.30%/H | -31% | -29% | [Meteora](https://app.meteora.ag/dlmm/GUkbxHuGftgd5LQG6pFEMoLLk41AA4w2YZZLK6wfbGym)<br>[GMGN](https://gmgn.ai/sol/token/DzvWsz4eLG2i2326E81rFxjTqaa476khgPRpRzrcpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/DzvWsz4eLG2i2326E81rFxjTqaa476khgPRpRzrcpump) |
-| Wizard/SOL | 312 hours | 400 | 1% | 56.20% | 2.20%/H | -7% | -39% | [Meteora](https://app.meteora.ag/dlmm/BUmKUtjaCf6g2eErqw6cYeRrFiB6iCAifnmPTVYHNHNt)<br>[GMGN](https://gmgn.ai/sol/token/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump) |
-| Wizard/SOL | 312 hours | 20 | 0.2% | 47.90% | 1.70%/H | -15% | -35% | [Meteora](https://app.meteora.ag/dlmm/FkwK3QH53f8aRM9uegZbSZSJUcDyao9at1Lovd7JCKBb)<br>[GMGN](https://gmgn.ai/sol/token/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump) |
-| ESIM/SOL | 811 hours | 100 | 2% | 32.50% | 0.20%/H | -86% | -86% | [Meteora](https://app.meteora.ag/dlmm/3NpWUFvTXg2mftsBeamcDxYeUuGdvJrMAxThY6LpmUHa)<br>[GMGN](https://gmgn.ai/sol/token/3zJ7RxtzPahndBTEn5PGUyo9xBMv6MJP9J4TPqdFpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/3zJ7RxtzPahndBTEn5PGUyo9xBMv6MJP9J4TPqdFpump) |
-| GCATS/SOL | 145 hours | 125 | 1% | 25.60% | 0.40%/H | -62% | -64% | [Meteora](https://app.meteora.ag/dlmm/9G4kypQMcEE7fbiek9p6a6deRkbh1V59ZmtMCpnZeiac)<br>[GMGN](https://gmgn.ai/sol/token/UbESBaztbkxJRWxPcfDeK8Fft15igTbrv3sed1bsegM)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/UbESBaztbkxJRWxPcfDeK8Fft15igTbrv3sed1bsegM) |
-| fitcoin/SOL | 159 hours | 125 | 5% | 22.40% | 0.50%/H | -50% | -67% | [Meteora](https://app.meteora.ag/dlmm/yqzukVGhRkPEUUvibwJwazJsGB5PUrcyS8fG6y1xNbG)<br>[GMGN](https://gmgn.ai/sol/token/9kvTPjemayUL7XKPyjhqavbcLtY5VP2ha1G5vPuppump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/9kvTPjemayUL7XKPyjhqavbcLtY5VP2ha1G5vPuppump) |
+| POSEIDON/SOL | 12 hours | 100 | 2% | 892.20% | 0.20%/H | -99% | -99% | [Meteora](https://app.meteora.ag/dlmm/2tFWbfWEGgsWWUxtxnm76AW3ur9AUiKjaCTyXAMBpxo1)<br>[GMGN](https://gmgn.ai/sol/token/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP) |
+| Ghat/SOL | 16 hours | 200 | 2% | 218.90% | 0.00%/H | 0% | 0% | [Meteora](https://app.meteora.ag/dlmm/DNa581kMc1kREBctS9W8kN27SrY1yMoJP9STuUwNGi1r)<br>[GMGN](https://gmgn.ai/sol/token/8ByQthE3cM4uA8mB8RTqy6q2f1EobSrJWmzhTbjYcWTt)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8ByQthE3cM4uA8mB8RTqy6q2f1EobSrJWmzhTbjYcWTt) |
+| TROLL/SOL | 53 hours | 100 | 0.2% | 193.40% | 14.40%/H | +79% | +64% | [Meteora](https://app.meteora.ag/dlmm/GF9MHYopv9L4jp9MgFG35Mht8Ucq4vpxDmSFNtw4dgJZ)<br>[GMGN](https://gmgn.ai/sol/token/5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2) |
+| CODE/SOL | 19 hours | 100 | 5% | 187.70% | 2.80%/H | -64% | -79% | [Meteora](https://app.meteora.ag/dlmm/DLRgG6dPcbhJh8sVp2qFzZK3MTBJBmf1neoC3DHJtyUZ)<br>[GMGN](https://gmgn.ai/sol/token/Fc7tEqyfHPoWQXdiAqx62d7WeuH7Zq1DHwa2ihDpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/Fc7tEqyfHPoWQXdiAqx62d7WeuH7Zq1DHwa2ihDpump) |
+| DB/SOL | 226 hours | 100 | 2% | 80.20% | 4.20%/H | +25% | -18% | [Meteora](https://app.meteora.ag/dlmm/9iZ2DS2srUKjwKQ7GVUJK6rUCzppc5CAwXv4YPoC4Tcf)<br>[GMGN](https://gmgn.ai/sol/token/43SXvpf4c41t2uErsw7aL6w5qhnie6BXSSPqiTcTpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/43SXvpf4c41t2uErsw7aL6w5qhnie6BXSSPqiTcTpump) |
+| TNN/SOL | 29 hours | 100 | 2% | 68.60% | 1.20%/H | -59% | -66% | [Meteora](https://app.meteora.ag/dlmm/GUkbxHuGftgd5LQG6pFEMoLLk41AA4w2YZZLK6wfbGym)<br>[GMGN](https://gmgn.ai/sol/token/DzvWsz4eLG2i2326E81rFxjTqaa476khgPRpRzrcpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/DzvWsz4eLG2i2326E81rFxjTqaa476khgPRpRzrcpump) |
+| Fartcoin2/SOL | 5 hours | 200 | 2% | 61.20% | 6.50%/H | +155% | +146% | [Meteora](https://app.meteora.ag/dlmm/6k3WXgkJv16aWpGD6i5hBA8j4gLPMb71kmLgon5eetUB)<br>[GMGN](https://gmgn.ai/sol/token/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump) |
+| Wizard/SOL | 314 hours | 20 | 0.2% | 55.50% | 0.60%/H | -72% | -74% | [Meteora](https://app.meteora.ag/dlmm/FkwK3QH53f8aRM9uegZbSZSJUcDyao9at1Lovd7JCKBb)<br>[GMGN](https://gmgn.ai/sol/token/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump) |
+| ESIM/SOL | 812 hours | 100 | 2% | 30.90% | 0.00%/H | -98% | -85% | [Meteora](https://app.meteora.ag/dlmm/3NpWUFvTXg2mftsBeamcDxYeUuGdvJrMAxThY6LpmUHa)<br>[GMGN](https://gmgn.ai/sol/token/3zJ7RxtzPahndBTEn5PGUyo9xBMv6MJP9J4TPqdFpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/3zJ7RxtzPahndBTEn5PGUyo9xBMv6MJP9J4TPqdFpump) |
+| Wizard/SOL | 314 hours | 80 | 1% | 28.90% | 0.10%/H | -94% | -92% | [Meteora](https://app.meteora.ag/dlmm/BnRQfq2v2BtHU7VFsXQJNZULoujXZPpm58tYdJpWF1af)<br>[GMGN](https://gmgn.ai/sol/token/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump) |
 
 
-### 🔒 其他安全池 - Other Safe Pools (3)
+### 🔒 其他安全池 - Other Safe Pools (1)
 
 筛选条件：
 - 持有人 > 1000
@@ -68,9 +69,7 @@ Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
 
 | 池子名称 | 年龄 | Bin Step | Base Fee | 费率/TVL | 30分钟收益率 | 30分钟变化 | 1H变化率 | 链接 |
 | ---- | --- | -------- | -------- | ------- | -------- | ---------- | -------- | ----- |
-| POSEIDON/SOL | 11 hours | 100 | 2% | 868.00% | 0.90%/H | -98% | -91% | [Meteora](https://app.meteora.ag/dlmm/2tFWbfWEGgsWWUxtxnm76AW3ur9AUiKjaCTyXAMBpxo1)<br>[GMGN](https://gmgn.ai/sol/token/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP) |
-| POSEIDON/SOL | 11 hours | 400 | 2% | 16.90% | 2.10%/H | +202% | +214% | [Meteora](https://app.meteora.ag/dlmm/CmFTYTbxewEGqbnWkwn2mBqrPNyR28ePYmKjeKjX9jJP)<br>[GMGN](https://gmgn.ai/sol/token/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/JCV8BB8Zde8ukroWKTjLSENSWEj42kBkENjjws2Rh6vP) |
-| Fartcoin2/SOL | 4 hours | 200 | 2% | 14.90% | 4.30%/H | +597% | +633% | [Meteora](https://app.meteora.ag/dlmm/6k3WXgkJv16aWpGD6i5hBA8j4gLPMb71kmLgon5eetUB)<br>[GMGN](https://gmgn.ai/sol/token/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/25MXdVVhQ2fnXmBdiL2pSWZojnV5odMZPtKbCXzRpump) |
+| Gold/SOL | 11 hours | 100 | 2% | 8.50% | 4.80%/H | +1246% | +1100% | [Meteora](https://app.meteora.ag/dlmm/9dUbZiattYFRmx8mKWKABWwTH5EjYgXbB64Vu73goUxj)<br>[GMGN](https://gmgn.ai/sol/token/8rWQDhktodDA2WP5b1o241taN2sujxCUGrrJ3JnZpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8rWQDhktodDA2WP5b1o241taN2sujxCUGrrJ3JnZpump) |
 
 
 ### ⚠️ 避免参与 - Avoid Pools (4)
@@ -82,7 +81,7 @@ Analysis of 92 pools from [https://tokleo.com/](https://tokleo.com/)
 
 | 池子名称 | 年龄 | Bin Step | Base Fee | 费率/TVL | 30分钟收益率 | 30分钟变化 | 1H变化率 | 链接 |
 | ---- | --- | -------- | -------- | ------- | -------- | ---------- | -------- | ----- |
-| TRACY/SOL | 1672 hours | 125 | 1% | 9.30% | 0.00%/H | 0% | 0% | [Meteora](https://app.meteora.ag/dlmm/H7d4hzqCnMvoY8jBDESABt9AvWVMw7FEE2iSFyjn6J8t)<br>[GMGN](https://gmgn.ai/sol/token/C1nzFL2DD3Wqc3dzRbsrpb6tiZ6dbYsXubjVtzyHvirt)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/C1nzFL2DD3Wqc3dzRbsrpb6tiZ6dbYsXubjVtzyHvirt) |
-| pwease/SOL | 1218 hours | 100 | 1% | 2.40% | 0.00%/H | -62% | 0% | [Meteora](https://app.meteora.ag/dlmm/HZErmEhFdPtEv8miyRNJ6YYDCJVTUDQ8vb6b9gYV1pAY)<br>[GMGN](https://gmgn.ai/sol/token/CniPCE4b3s8gSUPhUiyMjXnytrEqUrMfSsnbBjLCpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/CniPCE4b3s8gSUPhUiyMjXnytrEqUrMfSsnbBjLCpump) |
-| Fartcoin/SOL | 4474 hours | 10 | 0.1% | 1.80% | 0.00%/H | -45% | 0% | [Meteora](https://app.meteora.ag/dlmm/4Dvr3ghgphp4aTAsB34fmPP9Uk6e6xui6PbPaNiAHqRo)<br>[GMGN](https://gmgn.ai/sol/token/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump) |
-| Fartcoin/SOL | 4474 hours | 20 | 0.2% | 1.30% | 0.00%/H | -59% | 0% | [Meteora](https://app.meteora.ag/dlmm/6wJ7W3oHj7ex6MVFp2o26NSof3aey7U8Brs8E371WCXA)<br>[GMGN](https://gmgn.ai/sol/token/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump) |
+| PVS/SOL | 973 hours | 400 | 1% | 3.30% | 0.00%/H | -94% | 0% | [Meteora](https://app.meteora.ag/dlmm/2XrsFYyLiLJntsiGmk8h18Ny6KfWbf6RD89PRbVKzWnt)<br>[GMGN](https://gmgn.ai/sol/token/FWAr6oWa6CHg6WUcXu8CqkmsdbhtEqL8t31QTonppump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/FWAr6oWa6CHg6WUcXu8CqkmsdbhtEqL8t31QTonppump) |
+| EDWIN/USDC | 2114 hours | 80 | 1% | 2.20% | 0.00%/H | -46% | 0% | [Meteora](https://app.meteora.ag/dlmm/GN5VguUPcQU1xHR5PVH3gA4eESTZiVp9MLwXBL3PP7Yz)<br>[GMGN](https://gmgn.ai/sol/token/GPrg1CgbBvAJS2SCuf9gF7NmQYsWudfyfWy5SUzypump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/GPrg1CgbBvAJS2SCuf9gF7NmQYsWudfyfWy5SUzypump) |
+| Fartcoin/SOL | 4476 hours | 10 | 0.1% | 2.00% | 0.00%/H | -47% | 0% | [Meteora](https://app.meteora.ag/dlmm/4Dvr3ghgphp4aTAsB34fmPP9Uk6e6xui6PbPaNiAHqRo)<br>[GMGN](https://gmgn.ai/sol/token/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump) |
+| DARK/SOL | 434 hours | 100 | 1% | 1.90% | 0.00%/H | -40% | 0% | [Meteora](https://app.meteora.ag/dlmm/77Qi2mTMjfTJNDvZdQbas9YnWgzGK6itWBFu8FsCu6or)<br>[GMGN](https://gmgn.ai/sol/token/8BtoThi2ZoXnF7QQK1Wjmh2JuBw9FjVvhnGMVZ2vpump)<br>[GeckoTerminal](https://www.geckoterminal.com/solana/pools/8BtoThi2ZoXnF7QQK1Wjmh2JuBw9FjVvhnGMVZ2vpump) |

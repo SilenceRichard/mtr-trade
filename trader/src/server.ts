@@ -9,7 +9,7 @@ import agentRoutes from './routes/agent.routes';
 import { monitoringService } from './services/agent';
 const app = express();
 const port = process.env.PORT || 4001;
-
+console.log("process.env.TOKLEO_SCRAPER_URL", process.env.TOKLEO_SCRAPER_URL);
 // Middleware
 app.use(cors());
 app.use(express.json());

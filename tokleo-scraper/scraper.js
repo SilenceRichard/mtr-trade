@@ -133,7 +133,7 @@ async function scrapeTokleoData() {
   try {
     console.log('Launching browser...');
     
-    // Update the browser launch configuration
+    // Updated browser launch configuration optimized for EC2
     browser = await puppeteer.launch({
       headless: 'new',
       defaultViewport: null,
@@ -141,20 +141,11 @@ async function scrapeTokleoData() {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
         '--disable-gpu',
         '--window-size=1920,1080',
         '--disable-extensions',
         '--disable-background-networking',
-        '--disable-default-apps',
-        '--disable-features=site-per-process',
-        '--disable-hang-monitor',
-        '--disable-popup-blocking',
-        '--disable-prompt-on-repost',
         '--disable-sync',
-        '--disable-translate',
         '--metrics-recording-only',
         '--mute-audio',
         '--safebrowsing-disable-auto-update'
