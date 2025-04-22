@@ -1,4 +1,23 @@
 const fs = require('fs');
+const notifier = require('node-notifier');
+
+// Function to send macOS system notification
+function sendNotification(title, message) {
+  notifier.notify({
+    title: title,
+    message: message,
+    sound: true,
+    wait: true
+  });
+}
+
+// test notification
+function testNotification() {
+  sendNotification('Test Notification', 'This is a test notification from Tokleo Analyzer');
+  console.log('Test notification sent');
+}
+
+testNotification();
 
 // Function to load and analyze the scraped data
 async function analyzePools() {
@@ -114,6 +133,15 @@ async function analyzePools() {
       );
     });
 
+    // Send notification if high-yield pools are discovered
+    if (highYieldPools.length > 0) {
+      sendNotification(
+        '🔥 High Yield Pools Discovered!',
+        `Found ${highYieldPools.length} high-yield pools. Check details in pool-analysis.json`
+      );
+      console.log(`🔔 Notification sent for ${highYieldPools.length} high-yield pools`);
+    }
+
     // ⭐ 中等收益老池 (Medium Yield Old Pools)
     const mediumYieldPools = processedData.filter(pool => {
       const { ageHours, feeRatio } = pool;
@@ -144,6 +172,15 @@ async function analyzePools() {
         feeRatio.change30m > 150
       );
     });
+    
+    // Send notification if emerging pools are discovered
+    if (emergingPools.length > 0) {
+      sendNotification(
+        '🌊 Emerging Pools Alert!',
+        `Found ${emergingPools.length} emerging high-potential pools. Check details in pool-analysis.json`
+      );
+      console.log(`🔔 Notification sent for ${emergingPools.length} emerging pools`);
+    }
     
     // ⚠️ 避免参与 (Avoid Participating)
     const avoidPools = processedData.filter(pool => {

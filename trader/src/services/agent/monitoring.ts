@@ -12,7 +12,7 @@ import { MONITORING_INTERVAL_MS } from "./constants";
 
 // Configure monitoring variables
 let monitoringInterval: NodeJS.Timeout | null = null;
-let isMonitoringActive = true; // Default to active
+let isMonitoringActive = false; // Default to active
 
 /**
  * Monitoring service functions
