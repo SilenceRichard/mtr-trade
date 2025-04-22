@@ -4,9 +4,6 @@ puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const path = require('path');
 
-// Chrome path for Mac OS
-const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
 // Function to scrape security metrics from GeckoTerminal
 async function scrapeGeckoTerminalMetrics(tokenAddress, browser) {
   if (!tokenAddress) return null;
@@ -135,7 +132,6 @@ async function scrapeTokleoData() {
   
   try {
     console.log('Launching browser...');
-    console.log(`Using Chrome at: ${CHROME_PATH}`);
     
     // Update the browser launch configuration
     browser = await puppeteer.launch({
@@ -163,8 +159,7 @@ async function scrapeTokleoData() {
         '--mute-audio',
         '--safebrowsing-disable-auto-update'
       ],
-      ignoreHTTPSErrors: true,
-      executablePath: CHROME_PATH
+      ignoreHTTPSErrors: true
     }).catch(err => {
       console.error('Browser launch error:', err);
       throw new Error(`Failed to launch browser: ${err.message}`);

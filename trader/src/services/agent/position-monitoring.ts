@@ -20,6 +20,9 @@ const positionMonitoringInstances: Map<string, NodeJS.Timeout> = new Map();
 // Set to track positions that are currently being processed
 const processingPositions = new Set<string>();
 
+// Map to track position info fetch failures
+const positionFailureCount: Map<string, number> = new Map();
+
 /**
  * Calculate position profit
  */
@@ -109,10 +112,16 @@ export const startPositionMonitoring = (params: {
     clearInterval(positionMonitoringInstances.get(positionId)!);
   }
 
+  // Reset failure count when starting/restarting monitoring
+  positionFailureCount.set(positionId, 0);
+
   // Create a new monitoring interval
   const intervalId = setInterval(async () => {
     try {
       const position = await meteora.getPositionInfo(positionId);
+      // Reset failure count on success
+      positionFailureCount.set(positionId, 0);
+      
       // Get processedPosition from the position
       const { positionData } = position;
       // Get pool info to access token info
@@ -232,10 +241,41 @@ export const startPositionMonitoring = (params: {
         }
       }
     } catch (error) {
+      // Increment failure count
+      const currentFailures = positionFailureCount.get(positionId) || 0;
+      const newFailureCount = currentFailures + 1;
+      positionFailureCount.set(positionId, newFailureCount);
+      
       logger.error({
         message: `Error monitoring position ${positionId} for ${poolName}`,
         error: error instanceof Error ? error.message : String(error),
+        failureCount: newFailureCount,
       });
+      
+      // If three consecutive failures, stop monitoring this position
+      if (newFailureCount >= 3) {
+        logger.error({
+          message: `Stopping position monitoring after 3 consecutive failures`,
+          positionId,
+          poolName,
+        });
+        
+        stopPositionMonitoring(positionId);
+        
+        // Remove the pool from detectedPools if it exists
+        if (poolAddress && detectedPools.has(poolAddress)) {
+          detectedPools.delete(poolAddress);
+          tradingLogger.info({
+            message: `Removed pool from detected pools after failure threshold`,
+            poolAddress,
+            poolName,
+            remainingDetectedPools: detectedPools.size,
+          });
+        }
+        
+        // Remove failure count tracking
+        positionFailureCount.delete(positionId);
+      }
     }
   }, POSITION_MONITORING_INTERVAL_MS);
 

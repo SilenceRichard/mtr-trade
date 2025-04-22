@@ -52,6 +52,8 @@ export const processHighYieldPool = async (pool: Pool) => {
         // Get active bin price to determine price range
         const priceBin = await meteora.getActiveBinPrice();
         const currentPrice = Number(priceBin.realPrice);
+        // x/y = t  0.5t 
+        // 
 
         // Calculate min and max price (±20% from current price)
         const minPrice = currentPrice * 0.8;
@@ -79,32 +81,61 @@ export const processHighYieldPool = async (pool: Pool) => {
 
         try {
           // Create position using encapsulated function
-          const positionData = await createMeteoraPosition({
-            poolName,
-            poolAddress,
-            outputAmount,
-            remainingSolAmount,
-            minPrice,
-            maxPrice,
-          });
+          let positionData = null;
+          let retryCount = 0;
+          const maxRetries = 3;
+          let retryDelay = 2000; // Start with 2 seconds delay
+          
+          while (retryCount <= maxRetries && !positionData) {
+            try {
+              positionData = await createMeteoraPosition({
+                poolName,
+                poolAddress,
+                outputAmount,
+                remainingSolAmount,
+                minPrice,
+                maxPrice,
+              });
+              
+              if (positionData) {
+                tradingLogger.info({
+                  message: `Successfully created liquidity position for ${poolName}`,
+                  pool: poolName,
+                  positionId: positionData.positionId,
+                  txSignature: positionData.txId,
+                  explorerUrl: positionData.explorerUrl,
+                });
 
-          if (positionData) {
-            tradingLogger.info({
-              message: `Successfully created liquidity position for ${poolName}`,
-              pool: poolName,
-              positionId: positionData.positionId,
-              txSignature: positionData.txId,
-              explorerUrl: positionData.explorerUrl,
-            });
-
-            // Start monitoring this position
-            startPositionMonitoring({
-              meteora,
-              positionId: positionData.positionId,
-              poolName,
-              poolAddress,
-              mintAddress: poolTokenAddress,
-            });
+                // Start monitoring this position
+                startPositionMonitoring({
+                  meteora,
+                  positionId: positionData.positionId,
+                  poolName,
+                  poolAddress,
+                  mintAddress: poolTokenAddress,
+                });
+              }
+            } catch (retryError) {
+              retryCount++;
+              if (retryCount <= maxRetries) {
+                logger.warn({
+                  message: `Position creation failed for ${poolName}, retrying (${retryCount}/${maxRetries})`,
+                  poolAddress,
+                  error: retryError instanceof Error ? retryError.message : String(retryError),
+                });
+                
+                // Exponential backoff
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                retryDelay *= 2; // Double the delay for next retry
+              } else {
+                // Log final failure after all retries
+                logger.error({
+                  message: `Failed to create liquidity position for ${poolName} after ${maxRetries} attempts`,
+                  poolAddress,
+                  error: retryError instanceof Error ? retryError.message : String(retryError),
+                });
+              }
+            }
           }
         } catch (apiError) {
           logger.error({
