@@ -471,15 +471,7 @@ export const closePosition = async (req: Request, res: Response) => {
           const openTime = new Date(currentPosition.open_time);
           // Calculate duration in seconds
           const durationSeconds = Math.floor((closeTime.getTime() - openTime.getTime()) / 1000);
-          
-          const updatedPosition = await positionRepository.updatePositionWithClient(
-            positionAddress, 
-            { 
-              close_time: closeTime,
-              duration_seconds: durationSeconds
-            }, 
-            client
-          );
+     
           
           console.log(`Position closed with duration: ${durationSeconds} seconds`);
         }
@@ -550,7 +542,8 @@ export const updatePosition = async (req: Request, res: Response) => {
   try {
     const { position_id } = req.params;
     const updates = req.body;
-    
+    console.log("position_id check", position_id);
+    console.log("updates check", updates);
     if (!position_id) {
       return res.status(400).json({
         success: false,
@@ -565,7 +558,7 @@ export const updatePosition = async (req: Request, res: Response) => {
         error: 'No update data provided'
       });
     }
-    
+    console.log("updates check", updates);
     // 使用事务更新头寸，确保数据一致性
     let updatedPosition;
     try {
@@ -594,4 +587,37 @@ export const updatePosition = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}; 
+};
+
+/**
+ * 获取特定仓位的详细信息
+ */
+export const getPositionInfo = async (req: Request, res: Response) => {
+  try {
+    const { position_address } = req.params;
+    
+    if (!position_address) {
+      return res.status(400).json({
+        success: false,
+        error: 'Position address is required'
+      });
+    }
+    
+    const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+    const connection = new Connection(rpcEndpoint, 'confirmed');
+    const meteora = new MeteoraService(connection);
+
+    const position = await meteora.getPositionInfo(position_address);
+
+    res.json({
+      success: true,
+      data: position
+    });
+  } catch (error) {
+    console.error('Error getting position info:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

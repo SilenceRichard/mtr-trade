@@ -372,4 +372,30 @@ export class MeteoraService {
       throw error;
     }
   }
+  
+  /**
+   * 获取当前初始化的流动性池地址
+   * @returns 流动性池地址
+   */
+  getPoolAddress(): string | null {
+    if (!this.dlmmPool) return null;
+    return this.dlmmPool.pubkey.toString();
+  }
+
+  /**
+   * 获取特定仓位的详细信息
+   * @param positionAddress 仓位的地址
+   * @returns 仓位的详细信息
+   */
+  async getPositionInfo(positionAddress: string) {
+    if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
+
+    try {
+      const position = await this.dlmmPool.getPosition(new PublicKey(positionAddress));
+      return position;
+    } catch (error) {
+      console.error("Failed to get position info:", error);
+      throw error;
+    }
+  }
 } 

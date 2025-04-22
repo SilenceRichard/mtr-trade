@@ -21,11 +21,13 @@
     "@meteora-ag/dlmm": "^1.4.11",
     "@solana/spl-token-registry": "^0.2.4574",
     "@solana/web3.js": "^1.98.0",
+    "@types/axios": "^0.9.36",
     "@types/bip39": "^2.4.2",
     "@types/bs58": "^4.0.4",
     "@types/dotenv": "^6.1.1",
     "@types/lodash": "^4.17.16",
     "@types/pg": "^8.11.11",
+    "axios": "^1.8.4",
     "bip39": "^3.1.0",
     "bn.js": "^5.2.1",
     "cors": "^2.8.5",
@@ -34,7 +36,8 @@
     "express": "^5.1.0",
     "lodash": "^4.17.21",
     "pg": "^8.14.1",
-    "pg-pool": "^3.8.0"
+    "pg-pool": "^3.8.0",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.6",

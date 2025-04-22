@@ -11,4 +11,9 @@ export interface Position {
   open_time: Date;
   close_time?: Date;      // when position was closed
   duration_seconds: number;
+  status?: string;        // current status of the position (e.g., 'open', 'closing', 'closed')
+  error_message?: string; // error message if any operation failed
+  token_x_mint?: string;  // mint address of token X
+  token_x_amount?: string;// amount of token X
+  swap_amount?: string;   // amount received from token swap
 } 

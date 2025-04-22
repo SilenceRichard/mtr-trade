@@ -24,6 +24,9 @@ router.post('/positions/quote', meteoraController.getPositionQuote as RequestHan
 // 获取用户在所有池中的仓位
 router.get('/positions/all', meteoraController.getAllUserPositions as RequestHandler);
 
+// 获取特定仓位的详细信息
+router.get('/positions/:position_address/info', meteoraController.getPositionInfo as RequestHandler);
+
 // 移除流动性
 router.post('/positions/remove', meteoraController.removeLiquidity as RequestHandler);
 
