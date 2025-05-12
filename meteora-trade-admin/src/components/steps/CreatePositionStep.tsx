@@ -1,4 +1,4 @@
-import { Typography, Button, Steps, Spin, Alert, Slider, InputNumber, Row, Col } from "antd";
+import { Typography, Button, Steps, Spin, Alert, Slider, InputNumber, Row, Col, Collapse } from "antd";
 import { useState, useEffect, useCallback } from "react";
 import { PoolItem } from "../../services/poolService";
 import * as meteoraService from "../../services/meteoraService";
@@ -6,6 +6,7 @@ import { debounce } from "lodash";
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
+const { Panel } = Collapse;
 
 export interface CreatePositionStepProps {
   selectedPool?: PoolItem;
@@ -54,6 +55,8 @@ const CreatePositionStep = ({
   const [maxPricePercent, setMaxPricePercent] = useState<number>(20);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteResult, setQuoteResult] = useState<meteoraService.PositionQuoteResult | null>(null);
+  const [cuBufferMultiplier, setCuBufferMultiplier] = useState<number>(1.5);
+  const [microLamports, setMicroLamports] = useState<number>(1000000);
   
   // Update price when percentage changes
   const updatePriceFromPercent = (percent: number, type: 'min' | 'max') => {
@@ -129,7 +132,9 @@ const CreatePositionStep = ({
           yAmount: yAmount.toString(),
           maxPrice: customMaxPrice,
           minPrice: customMinPrice,
-          strategyType: strategy
+          strategyType: strategy,
+          cuBufferMultiplier,
+          microLamports
         };
         
         const result = await meteoraService.getPositionQuote(quoteParams);
@@ -143,7 +148,7 @@ const CreatePositionStep = ({
         setQuoteLoading(false);
       }
     }, 500),
-    [selectedPool, solAmount, strategy, walletInfo, tokenDecimals, customMinPrice, customMaxPrice]
+    [selectedPool, solAmount, strategy, walletInfo, tokenDecimals, customMinPrice, customMaxPrice, cuBufferMultiplier, microLamports]
   );
 
   // Fetch pool price for position creation range calculation
@@ -264,7 +269,9 @@ const CreatePositionStep = ({
         poolName: selectedPool.poolName,
         maxPrice,
         minPrice,
-        strategyType: strategy
+        strategyType: strategy,
+        cuBufferMultiplier,
+        microLamports
       };
     
       const result = await meteoraService.createPosition(positionParams);
@@ -461,6 +468,47 @@ const CreatePositionStep = ({
     );
   };
 
+  // Render compute budget settings UI
+  const renderComputeBudgetSettings = () => {
+    return (
+      <Collapse style={{ marginTop: 16, marginBottom: 16 }}>
+        <Panel header="Advanced Settings (Compute Budget)" key="1">
+          <Row gutter={16} style={{ marginBottom: 16, alignItems: 'center' }}>
+            <Col span={12}>
+              <Text>CU Buffer Multiplier:</Text>
+              <InputNumber
+                style={{ width: '100%', marginTop: 8 }}
+                value={cuBufferMultiplier}
+                min={1}
+                max={5}
+                step={0.1}
+                precision={1}
+                onChange={(value) => setCuBufferMultiplier(Number(value))}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Multiplier for compute unit buffer (1-5)
+              </Text>
+            </Col>
+            <Col span={12}>
+              <Text>Micro Lamports per CU:</Text>
+              <InputNumber
+                style={{ width: '100%', marginTop: 8 }}
+                value={microLamports}
+                min={1}
+                max={10000000}
+                step={100000}
+                onChange={(value) => setMicroLamports(Number(value))}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Price per compute unit in micro-lamports
+              </Text>
+            </Col>
+          </Row>
+        </Panel>
+      </Collapse>
+    );
+  };
+
   // Render position step content
   const renderPositionStepContent = () => {
     if (positionState.status === "pending") {
@@ -507,6 +555,9 @@ const CreatePositionStep = ({
               </a>
             </div>
           )}
+          <div style={{ marginTop: 8 }}>
+            <Text type="secondary">Compute Budget: CU Buffer Multiplier: {cuBufferMultiplier}, Micro Lamports per CU: {microLamports}</Text>
+          </div>
           {walletInfo && (
             <>
               <br />
@@ -565,6 +616,8 @@ const CreatePositionStep = ({
               </div>
               
               {renderPriceRangeSelector()}
+              
+              {renderComputeBudgetSettings()}
               
               <Button 
                 type="primary" 

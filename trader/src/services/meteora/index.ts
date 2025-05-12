@@ -8,14 +8,20 @@ import DLMM, { LbPosition, StrategyType } from "@meteora-ag/dlmm";
 import { BN } from "@coral-xyz/anchor";
 import { buildOptimalTransaction } from "../../utils/transaction";
 
-
+// 添加Meteora服务配置接口
+export interface MeteoraServiceConfig {
+  cuBufferMultiplier?: number;
+  microLamports?: number;
+}
 
 export class MeteoraService {
   private connection: Connection;
   private dlmmPool: DLMM | null = null;
+  private config: MeteoraServiceConfig;
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, config: MeteoraServiceConfig = {}) {
     this.connection = connection;
+    this.config = config;
   }
 
   async initializeDLMMPool(poolAddress: string) {
@@ -101,9 +107,20 @@ export class MeteoraService {
     maxBinId: number;
     minBinId: number;
     strategyType: StrategyType;
+    cuBufferMultiplier?: number;
+    microLamports?: number;
   }) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
-    const { user, xAmount, yAmount, maxBinId, minBinId, strategyType } = props;
+    const { 
+      user, 
+      xAmount, 
+      yAmount, 
+      maxBinId, 
+      minBinId, 
+      strategyType,
+      cuBufferMultiplier = this.config.cuBufferMultiplier,
+      microLamports = this.config.microLamports
+    } = props;
     try {
       const newPosition = new Keypair();
       const totalXAmount = new BN(xAmount);
@@ -129,6 +146,8 @@ export class MeteoraService {
         connection: this.connection,
         publicKey: user.publicKey,
         signers: [user, newPosition],
+        cuBufferMultiplier,
+        microLamports,
       });
 
       opTx.sign([user, newPosition]);
@@ -159,7 +178,9 @@ export class MeteoraService {
     user: Keypair,
     amount: BN,
     swapYtoX: boolean,
-    minOutAmount: BN
+    minOutAmount: BN,
+    cuBufferMultiplier?: number,
+    microLamports?: number
   ) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
 
@@ -186,6 +207,8 @@ export class MeteoraService {
         connection: this.connection,
         publicKey: user.publicKey,
         signers: [user],
+        cuBufferMultiplier: cuBufferMultiplier || this.config.cuBufferMultiplier,
+        microLamports: microLamports || this.config.microLamports,
       });
 
       opTx.sign([user]);
@@ -213,7 +236,9 @@ export class MeteoraService {
     user: Keypair,
     positionAddress: string,
     fromBinId: number,
-    toBinId: number
+    toBinId: number,
+    cuBufferMultiplier?: number,
+    microLamports?: number
   ) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
 
@@ -237,6 +262,8 @@ export class MeteoraService {
           connection: this.connection,
           publicKey: user.publicKey,
           signers: [user],
+          cuBufferMultiplier: cuBufferMultiplier || this.config.cuBufferMultiplier,
+          microLamports: microLamports || this.config.microLamports,
         });
 
         opTx.sign([user]);
@@ -278,7 +305,9 @@ export class MeteoraService {
 
   async claimFee(
     user: Keypair,
-    positionAddress: string
+    positionAddress: string,
+    cuBufferMultiplier?: number,
+    microLamports?: number
   ) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
 
@@ -301,6 +330,8 @@ export class MeteoraService {
           connection: this.connection,
           publicKey: user.publicKey,
           signers: [user],
+          cuBufferMultiplier: cuBufferMultiplier || this.config.cuBufferMultiplier,
+          microLamports: microLamports || this.config.microLamports,
         });
 
         opTx.sign([user]);
@@ -329,7 +360,9 @@ export class MeteoraService {
 
   async closePosition(
     user: Keypair,
-    positionAddress: string
+    positionAddress: string,
+    cuBufferMultiplier?: number,
+    microLamports?: number
   ) {
     if (!this.dlmmPool) throw new Error("DLMM pool not initialized");
 
@@ -350,6 +383,8 @@ export class MeteoraService {
         connection: this.connection,
         publicKey: user.publicKey,
         signers: [user],
+        cuBufferMultiplier: cuBufferMultiplier || this.config.cuBufferMultiplier,
+        microLamports: microLamports || this.config.microLamports,
       });
 
       opTx.sign([user]);

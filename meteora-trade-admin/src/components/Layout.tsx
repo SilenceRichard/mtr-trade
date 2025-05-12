@@ -33,6 +33,9 @@ const Layout = ({ children }: LayoutProps) => {
               <li className={location.pathname === '/positions' ? 'active' : ''}>
                 <Link to="/positions">Positions</Link>
               </li>
+              <li className={location.pathname === '/swap' ? 'active' : ''}>
+                <Link to="/swap">Swap</Link>
+              </li>
               {/* <li className={location.pathname === '/settings' ? 'active' : ''}>
                 <Link to="/settings">Settings</Link>
               </li> */}

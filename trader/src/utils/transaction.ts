@@ -13,8 +13,17 @@ export const buildOptimalTransaction = async (params: {
   connection: Connection;
   publicKey: PublicKey;
   signers: Signer[];
+  cuBufferMultiplier?: number;
+  microLamports?: number;
 }) => {
-  const { transaction, connection, publicKey, signers } = params;
+  const { 
+    transaction, 
+    connection, 
+    publicKey, 
+    signers, 
+    cuBufferMultiplier = 1.2, 
+    microLamports = 5000 
+  } = params;
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
 
@@ -44,9 +53,7 @@ export const buildOptimalTransaction = async (params: {
   }
 
   const consumedCU = simResult.value.unitsConsumed || 200_000;
-  const cuBufferMultiplier = 1.2;
   const optimalUnits = Math.min(Math.ceil(consumedCU * cuBufferMultiplier), 1_400_000);
-  const microLamports = 5000;
 
   // 3. 构建最终含有 ComputeBudget 的指令
   const newComputeLimitIx = ComputeBudgetProgram.setComputeUnitLimit({

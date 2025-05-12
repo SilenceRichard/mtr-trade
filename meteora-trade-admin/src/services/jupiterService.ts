@@ -40,6 +40,11 @@ export interface SwapResult {
   explorerUrl: string;
 }
 
+export interface ComputeBudgetConfig {
+  cuBufferMultiplier?: number;
+  microLamports?: number;
+}
+
 // Get Jupiter swap quote
 export const getJupiterQuote = async (params: QuoteParams): Promise<QuoteResponse | null> => {
   try {
@@ -62,11 +67,17 @@ export const getJupiterQuote = async (params: QuoteParams): Promise<QuoteRespons
 };
 
 // Execute Jupiter swap
-export const executeJupiterSwap = async (quoteResponse: QuoteResponse): Promise<SwapResult | null> => {
+export const executeJupiterSwap = async (
+  quoteResponse: QuoteResponse,
+  computeBudgetConfig?: ComputeBudgetConfig
+): Promise<SwapResult | null> => {
   try {
     const response = await axios.post<{ success: boolean; data: SwapResult; error?: string }>(
       `${TRADER_API_URL}/jupiter/swap`,
-      { quoteResponse }
+      { 
+        quoteResponse,
+        computeBudgetConfig
+      }
     );
     
     if (response.data.success) {

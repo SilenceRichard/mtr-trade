@@ -77,7 +77,7 @@ const SwapStep = ({
             <InputNumber
               min={0.01}
               max={10}
-              step={0.01}
+              step={1}
               value={slippagePercent}
               onChange={handleSlippageChange}
               formatter={(value) => `${value}%`}

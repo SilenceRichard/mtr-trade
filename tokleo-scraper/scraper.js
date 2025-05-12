@@ -1,121 +1,43 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const path = require('path');
-
-// Function to scrape security metrics from GeckoTerminal
-async function scrapeGeckoTerminalMetrics(tokenAddress, browser) {
-  if (!tokenAddress) return null;
-  
-  console.log(`Scraping GeckoTerminal for token: ${tokenAddress}`);
-  const page = await browser.newPage();
-  page.setDefaultTimeout(90000); // Increase timeout for slow connections
-  
-  try {
-    // Navigate to the GeckoTerminal page for this token
-    await page.goto(`https://www.geckoterminal.com/solana/pools/${tokenAddress}`, { 
-      waitUntil: 'networkidle2',
-      timeout: 90000
-    });
-    
-    // Check if page has a "not found" message
-    const notFoundText = await page.evaluate(() => {
-      const notFoundElement = document.querySelector('h1.text-2xl');
-      return notFoundElement ? notFoundElement.textContent : null;
-    });
-    
-    if (notFoundText && notFoundText.includes('Not Found')) {
-      console.log(`Token ${tokenAddress} not found on GeckoTerminal`);
-      return null;
-    }
-    
-    // Wait for the metrics table to load
-    const metricsSelector = 'div.rounded.border.border-gray-800.min-w-\\[20rem\\].flex-1.p-2.md\\:min-w-0.md\\:flex-none > table > tbody';
-    try {
-      await page.waitForSelector(metricsSelector, { timeout: 30000 });
-    } catch (error) {
-      console.log(`Metrics table not found for token ${tokenAddress}`);
-      return null;
-    }
-    
-    // Extract the security metrics
-    const securityMetrics = await page.evaluate((selector) => {
-      const metricsContainer = document.querySelector(selector);
-      if (!metricsContainer) return null;
-      
-      const metrics = {};
-      const rows = metricsContainer.querySelectorAll('tr');
-      
-      rows.forEach(row => {
-        const label = row.querySelector('th span.block')?.textContent.trim();
-        const value = row.querySelector('td span')?.textContent.trim();
-        
-        if (label && value) {
-          metrics[label] = value;
-        }
-      });
-      
-      return metrics;
-    }, metricsSelector);
-    
-    return securityMetrics;
-  } catch (error) {
-    console.error(`Error scraping GeckoTerminal for ${tokenAddress}:`, error.message);
-    return null;
-  } finally {
-    await page.close();
-  }
-}
+const axios = require('axios');
+require('dotenv').config();
 
 // 预先分析函数，识别潜在的高收益和新兴池
-function identifyPotentialPools(poolCards) {
+function identifyPotentialPools(poolData) {
   const potentialTokens = new Set();
   
-  for (const pool of poolCards) {
+  for (const pool of poolData) {
     try {
-      // 提取年龄
-      const ageText = pool.dataPoints['Age'] || '0 hours';
-      let ageHours = 0;
-      
+      // 从API响应中提取相关数据
       // 解析年龄为小时
-      const hours = ageText.match(/(\d+)\s*hour/);
-      const days = ageText.match(/(\d+)\s*day/);
-      if (hours) ageHours += parseInt(hours[1]);
-      if (days) ageHours += parseInt(days[1]) * 24;
+      const ageHours = pool.oldest_pair_ageInHours || 0;
       
       // 解析费率
-      const hourlyRate1h = parseFloat((pool.feeRatios['1H']?.hourly || '0%').replace('%', '')) || 0;
-      const hourlyRate24h = parseFloat((pool.feeRatios['24H']?.hourly || '0%').replace('%', '')) || 0;
+      const hourlyRate1h = pool.meteora_feeTvlRatio?.h1_per_hour || 0;
+      const hourlyRate24h = pool.meteora_feeTvlRatio?.h24_per_hour || 0;
+      const change30m = pool.meteora_feeTvlRatio?.m30_vs_h24_per_hour || 0;
       
       // 解析成交量
-      const parseVolume = (text) => {
-        if (!text) return 0;
-        const value = text.replace(/[$/,H]/g, '');
-        if (value.includes('K')) return parseFloat(value.replace('K', '')) * 1000;
-        if (value.includes('M')) return parseFloat(value.replace('M', '')) * 1000000;
-        if (value.includes('B')) return parseFloat(value.replace('B', '')) * 1000000000;
-        return parseFloat(value) || 0;
-      };
-      
-      const volume1h = parseVolume(pool.volumeData['1H']?.hourly);
-      const volume24h = parseVolume(pool.volumeData['24H']?.hourly);
+      const volume1h = pool.oldest_pair_volume?.h1_per_hour || 0;
+      const volume24h = pool.oldest_pair_volume?.h24_per_hour || 0;
       
       // 检查是否潜在高收益池
       const isPotentialHighYield = 
         ageHours > 24 &&
-        hourlyRate1h > 5 &&
-        hourlyRate1h > hourlyRate24h * 1.5 &&
+        hourlyRate1h > 0.5 &&
+        change30m > 100 &&
         volume1h > volume24h * 1.5;
       
       // 检查是否潜在新兴池
       const isPotentialEmerging = 
         ageHours < 24 &&
-        hourlyRate1h > hourlyRate24h * 1.5;
+        hourlyRate1h > 5 &&
+        change30m > 150;
       
       // 如果满足任一条件，添加到潜在token列表
-      if ((isPotentialHighYield || isPotentialEmerging) && pool.tokenAddress) {
-        potentialTokens.add(pool.tokenAddress);
+      if ((isPotentialHighYield || isPotentialEmerging) && pool.meteora_degenTokenAddress) {
+        potentialTokens.add(pool.meteora_degenTokenAddress);
       }
     } catch (error) {
       console.error('Error analyzing pool:', error);
@@ -126,300 +48,152 @@ function identifyPotentialPools(poolCards) {
   return [...potentialTokens];
 }
 
-// Main scraping function
+// Function to check if data has changed compared to previous run
+function hasDataChanged(newData, filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.log(`No previous data file found at ${filePath}, treating as new data`);
+      return true;
+    }
+    
+    const oldData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    
+    // Simple comparison - check if the count of pools has changed
+    if (newData.pools.length !== oldData.pools.length) {
+      console.log(`Pool count changed: ${oldData.pools.length} -> ${newData.pools.length}`);
+      return true;
+    }
+    
+    // Check if at least one of the pools has a different tokenPair
+    // This is a very simple comparison, you may want more thorough comparison
+    const oldPairs = new Set(oldData.pools.map(p => p.meteora_name));
+    const newPairs = newData.pools.map(p => p.meteora_name);
+    let hasNewPair = false;
+    
+    for (const pair of newPairs) {
+      if (!oldPairs.has(pair)) {
+        console.log(`Found new pair: ${pair}`);
+        hasNewPair = true;
+        break;
+      }
+    }
+    
+    if (!hasNewPair) {
+      console.log('WARNING: No new pairs detected compared to previous data');
+    }
+    
+    return hasNewPair;
+  } catch (error) {
+    console.error('Error comparing data:', error);
+    // If there's an error comparing, assume data has changed to be safe
+    return true;
+  }
+}
+
+// Main function that fetches data from Tokleo API
 async function scrapeTokleoData() {
-  let browser = null;
+  const startTime = new Date();
+  console.log(`Scraping started at: ${startTime.toISOString()}`);
   
   try {
-    console.log('Launching browser...');
+    // Get API key from environment variables
+    const apiKey = process.env.TOKLEO_API_KEY;
+    if (!apiKey) {
+      throw new Error('TOKLEO_API_KEY environment variable is not set. Create a .env file with TOKLEO_API_KEY=your_key');
+    }
     
-    // Updated browser launch configuration optimized for EC2
-    browser = await puppeteer.launch({
-      headless: 'new',
-      defaultViewport: null,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--window-size=1920,1080',
-        '--disable-extensions',
-        '--disable-background-networking',
-        '--disable-sync',
-        '--metrics-recording-only',
-        '--mute-audio',
-        '--safebrowsing-disable-auto-update'
-      ],
-      ignoreHTTPSErrors: true
-    }).catch(err => {
-      console.error('Browser launch error:', err);
-      throw new Error(`Failed to launch browser: ${err.message}`);
+    console.log('Fetching data from Tokleo API...');
+    
+    // Make API request to get pool data
+    const response = await axios.get('https://api.tokleo.com/api/public/pools', {
+      headers: {
+        'accept': 'application/json',
+        'X-Public-Key': apiKey
+      }
     });
     
-    console.log('Creating new page...');
-    const page = await browser.newPage().catch(err => {
-      console.error('New page creation error:', err);
-      throw new Error(`Failed to create new page: ${err.message}`);
-    });
+    const apiData = response.data;
+    console.log(`Received data for ${apiData.pools.length} pools from API`);
     
-    console.log('Setting default timeout...');
-    page.setDefaultTimeout(60000); // 60 seconds timeout
-    
-    console.log('Navigating to Tokleo...');
-    try {
-      await page.goto('https://tokleo.com/', { 
-        waitUntil: 'networkidle2',
-        timeout: 90000 // Increased timeout to 90 seconds
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      throw new Error(`Failed to navigate to Tokleo: ${error.message}`);
-    }
-    
-    console.log('Page loaded, waiting for main container...');
-    
-    // Get the main container with all pool data
-    const mainContainerSelector = 'body > div.relative.flex.min-h-screen.flex-col > div > main > div > div.mx-auto.grid.w-full.gap-4';
-    try {
-      await page.waitForSelector(mainContainerSelector, { timeout: 60000 });
-    } catch (error) {
-      console.error('Main container selector error:', error);
-      
-      // Take a screenshot to debug
-      await page.screenshot({ path: 'error-screenshot.png' });
-      console.log('Saved error screenshot to error-screenshot.png');
-      
-      // Dump the current page HTML to help debug selectors
-      const htmlContent = await page.content();
-      fs.writeFileSync('error-page.html', htmlContent);
-      console.log('Saved page HTML to error-page.html');
-      
-      throw new Error(`Failed to find main container: ${error.message}`);
-    }
-    
-    console.log('Main container found, extracting pool cards...');
-    
-    // Extract pool cards data
-    let poolCards;
-    try {
-      poolCards = await page.evaluate(() => {
-        const poolCardsData = [];
-        // Select all pool card containers
-        const cardElements = document.querySelectorAll('.border.border-neutral-200.text-neutral-950.shadow.dark\\:border-neutral-800.dark\\:bg-neutral-950.dark\\:text-neutral-50.w-full.rounded-none.bg-card\\/50.backdrop-blur-sm.max-w-\\[400px\\].justify-self-center');
-        
-        if (!cardElements || cardElements.length === 0) {
-          console.error('No card elements found on the page');
-          return [];
-        }
-        
-        console.log(`Found ${cardElements.length} card elements`);
-        
-        cardElements.forEach((card, index) => {
-          try {
-            // Extract token pair
-            const tokenPair = card.querySelector('.font-semibold.tracking-tight.font-mono.text-base.text-primary')?.textContent;
-            
-            // Extract 24h Fee/TVL
-            const feeToTVL = card.querySelector('.font-medium.text-emerald-400')?.textContent;
-            
-            // Extract Pool Address (from link)
-            const poolAddressLink = card.querySelector('a[href*="app.meteora.ag/dlmm/"]');
-            const poolAddress = poolAddressLink ? new URL(poolAddressLink.href).pathname.split('/').pop() : null;
-            
-            // Extract Token Address from the last anchor tag in the Token section
-            // Find the token section by looking for the label that says "Token"
-            let tokenAddress = null;
-            const tokenSections = Array.from(card.querySelectorAll('.text-xs.text-muted-foreground'))
-              .filter(el => el.textContent.trim() === 'Token');
-            
-            if (tokenSections.length > 0) {
-              // Get the parent element that contains the Token section
-              const tokenSection = tokenSections[0].closest('.flex.flex-col.items-center.gap-1');
-              // Find the last anchor tag within this section (it contains the token address)
-              if (tokenSection) {
-                const tokenLinks = tokenSection.querySelectorAll('a');
-                if (tokenLinks.length > 0) {
-                  const lastTokenLink = tokenLinks[tokenLinks.length - 1];
-                  // Extract the token address from the URL
-                  tokenAddress = new URL(lastTokenLink.href).pathname.split('/').pop();
-                }
-              }
-            }
-            
-            // Extract other data points
-            const dataPoints = {};
-            const labels = card.querySelectorAll('.text-muted-foreground');
-            labels.forEach(label => {
-              const labelText = label.textContent.trim();
-              if (labelText && label.nextElementSibling && label.nextElementSibling.classList.contains('font-medium')) {
-                dataPoints[labelText] = label.nextElementSibling.textContent.trim();
-              }
-            });
-            
-            // Extract Fee/TVL Ratios
-            const feeRatios = {};
-            const ratioRows = card.querySelectorAll('.grid.grid-cols-\\[auto_auto_auto_auto\\].items-center');
-            if (ratioRows.length > 0) {
-              const timeframes = ratioRows[0].querySelectorAll('.text-sm.text-muted-foreground');
-              timeframes.forEach((timeframe, index) => {
-                const cells = ratioRows[0].children;
-                const offset = index * 4;
-                if (cells[offset] && cells[offset+1] && cells[offset+2]) {
-                  feeRatios[timeframe.textContent] = {
-                    ratio: cells[offset+1].textContent,
-                    hourly: cells[offset+2].textContent,
-                    change: cells[offset+3]?.textContent || null
-                  };
-                }
-              });
-            }
-            
-            // Extract Volume Data
-            const volumeData = {};
-            if (ratioRows.length > 1) {
-              const timeframes = ratioRows[1].querySelectorAll('.text-sm.text-muted-foreground');
-              timeframes.forEach((timeframe, index) => {
-                const cells = ratioRows[1].children;
-                const offset = index * 4;
-                if (cells[offset] && cells[offset+1] && cells[offset+2]) {
-                  volumeData[timeframe.textContent] = {
-                    volume: cells[offset+1].textContent,
-                    hourly: cells[offset+2].textContent,
-                    change: cells[offset+3]?.textContent || null
-                  };
-                }
-              });
-            }
-            
-            poolCardsData.push({
-              tokenPair,
-              feeToTVL,
-              poolAddress,
-              tokenAddress,
-              dataPoints,
-              feeRatios,
-              volumeData
-            });
-          } catch (err) {
-            console.error(`Error parsing card ${index}:`, err);
-          }
-        });
-        
-        return poolCardsData;
-      });
-    } catch (error) {
-      console.error('Error extracting pool cards:', error);
-      throw new Error(`Failed to extract pool cards: ${error.message}`);
-    }
-    
-    console.log(`Extracted data for ${poolCards.length} pools`);
-    
-    if (poolCards.length === 0) {
-      console.warn('Warning: No pool cards were found. The website structure may have changed.');
-      
-      // Take a screenshot to help debug
-      await page.screenshot({ path: 'no-cards-screenshot.png' });
-      console.log('Saved screenshot to no-cards-screenshot.png');
-      
-      // Save the page HTML for further debugging
-      const htmlContent = await page.content();
-      fs.writeFileSync('page-content.html', htmlContent);
-      console.log('Saved page HTML to page-content.html for debugging');
-    }
+    // 直接使用API返回的数据，不做转换
+    const structuredData = {
+      pools: apiData.pools,
+      timestamp: new Date().toISOString(),
+      count: apiData.pools.length,
+      lastApiUpdate: apiData.last_updated
+    };
     
     // 识别潜在的高收益和新兴池
-    const potentialTokens = identifyPotentialPools(poolCards);
+    const potentialTokens = identifyPotentialPools(apiData.pools);
+    console.log(`Identified ${potentialTokens.length} potential tokens`);
     
-    // Create a cache for token security metrics to avoid duplicate requests
-    const securityMetricsCache = {};
-    
-    // Enhance data with security metrics from GeckoTerminal
-    console.log('Enhancing data with security metrics from GeckoTerminal...');
-    
-    // 只对潜在的高收益和新兴池进行安全性检查
-    for (let i = 0; i < potentialTokens.length; i++) {
-      const tokenAddress = potentialTokens[i];
-      console.log(`Processing potential token ${i+1}/${potentialTokens.length}: ${tokenAddress}`);
-      
-      // Check if we've already scraped this token
-      if (securityMetricsCache[tokenAddress]) {
-        console.log(`Using cached data for token: ${tokenAddress}`);
-      } else {
-        const securityMetrics = await scrapeGeckoTerminalMetrics(tokenAddress, browser);
-        
-        // Cache the result for future use
-        if (securityMetrics) {
-          securityMetricsCache[tokenAddress] = securityMetrics;
-          console.log(`Successfully retrieved metrics for token: ${tokenAddress}`);
-        } else {
-          console.log(`No security metrics found for token: ${tokenAddress}`);
-          securityMetricsCache[tokenAddress] = { status: 'not_found' };
-        }
-        
-        // Add a small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    }
-    
-    // 将安全指标添加到池数据中
-    for (let i = 0; i < poolCards.length; i++) {
-      if (poolCards[i].tokenAddress && securityMetricsCache[poolCards[i].tokenAddress]) {
-        poolCards[i].securityMetrics = securityMetricsCache[poolCards[i].tokenAddress];
-      }
-    }
+    // Check if the data has actually changed
+    const dataChanged = hasDataChanged(structuredData, 'tokleo-structured-data.json');
     
     try {
-      // Get the main container for raw HTML/text backup
-      const mainContainerElement = await page.$(mainContainerSelector);
-      const mainContainerHTML = await page.evaluate(el => el.outerHTML, mainContainerElement);
-      const mainContainerText = await page.evaluate(el => el.innerText, mainContainerElement);
+      // Append timestamp to filenames for historical tracking
+      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
       
       // Save the raw data to a file
-      fs.writeFileSync('tokleo-raw-data.json', JSON.stringify({
-        mainContainer: {
-          html: mainContainerHTML,
-          text: mainContainerText
-        },
-      }, null, 2));
+      fs.writeFileSync('tokleo-raw-data.json', JSON.stringify(apiData, null, 2));
       
       // Save the structured data to a file
-      fs.writeFileSync('tokleo-structured-data.json', JSON.stringify({
-        pools: poolCards,
-        timestamp: new Date().toISOString(),
-        count: poolCards.length
-      }, null, 2));
+      fs.writeFileSync('tokleo-structured-data.json', JSON.stringify(structuredData, null, 2));
+      
+      // Also save a timestamped copy for historical tracking
+      fs.writeFileSync(`tokleo-structured-data-${timestamp}.json`, JSON.stringify(structuredData, null, 2));
       
       console.log('Raw data saved to tokleo-raw-data.json');
-      console.log('Structured data saved to tokleo-structured-data.json');
+      console.log(`Structured data saved to tokleo-structured-data.json${dataChanged ? ' (UPDATED DATA)' : ' (NO CHANGE DETECTED)'}`);
+      console.log(`Historical copy saved to tokleo-structured-data-${timestamp}.json`);
     } catch (error) {
       console.error('Error saving data to files:', error);
       throw new Error(`Failed to save data: ${error.message}`);
     }
   
+    // 检查内存使用情况并打印，帮助监控
+    const getMemoryUsage = () => {
+      const memoryUsage = process.memoryUsage();
+      return {
+        rss: Math.round(memoryUsage.rss / 1024 / 1024) + ' MB',
+        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + ' MB',
+        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + ' MB',
+        external: Math.round(memoryUsage.external / 1024 / 1024) + ' MB'
+      };
+    };
+
+    console.log('Memory usage after extraction:', getMemoryUsage());
+
+    const endTime = new Date();
+    const durationMs = endTime - startTime;
+    console.log(`Scraping completed at: ${endTime.toISOString()}`);
+    console.log(`Total duration: ${Math.floor(durationMs / 1000)} seconds`);
+    console.log('Final memory usage:', getMemoryUsage());
+  
   } catch (error) {
-    console.error('Error scraping Tokleo:', error);
-  } finally {
-    // Close browser
-    if (browser) {
-      try {
-        await browser.close();
-        console.log('Browser closed');
-      } catch (error) {
-        console.error('Error closing browser:', error);
-      }
-    }
+    console.error('Error fetching Tokleo data:', error);
+    throw error; // Re-throw to indicate failure to the caller
   }
 }
 
-// Run the scraper with a proper promise handler
-(async () => {
-  try {
-    await scrapeTokleoData();
-    console.log('Scraping completed successfully');
-  } catch (error) {
-    console.error('Scraping failed:', error);
-  }
-})();
-
 // Export the function for use in other files
-module.exports = { scrapeTokleoData }; 
+module.exports = { scrapeTokleoData };
+
+// 添加一个简单的运行脚本
+if (require.main === module) {
+  console.log(`
+=============================================
+确保已设置环境变量，可以创建.env文件:
+TOKLEO_API_KEY=你的API密钥
+=============================================
+  `);
+  
+  (async () => {
+    try {
+      await scrapeTokleoData();
+      console.log('Scraping completed successfully');
+    } catch (error) {
+      console.error('Scraping failed:', error);
+    }
+  })();
+} 

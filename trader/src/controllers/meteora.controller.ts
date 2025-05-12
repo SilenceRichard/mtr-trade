@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Connection } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { MeteoraService } from '../services/meteora';
+import { MeteoraService, MeteoraServiceConfig } from '../services/meteora';
 import { getWallet } from '../services/wallet';
 import { LbPosition, StrategyType } from '@meteora-ag/dlmm';
 import * as DLMM from '@meteora-ag/dlmm';
@@ -15,6 +15,8 @@ import { withTransaction } from '../db/transaction';
 export const initializePool = async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
+    // Don't use computeBudgetConfig here since it's using route params, not body
+    const computeBudgetConfig = {};
     
     if (!address) {
       return res.status(400).json({
@@ -25,7 +27,7 @@ export const initializePool = async (req: Request, res: Response) => {
     
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     const initialized = await meteora.initializeDLMMPool(address);
     
     if (!initialized) {
@@ -57,6 +59,8 @@ export const initializePool = async (req: Request, res: Response) => {
 export const getActiveBinPrice = async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
+    // Don't use computeBudgetConfig here since it's using route params, not body
+    const computeBudgetConfig = {};
     
     if (!address) {
       return res.status(400).json({
@@ -67,7 +71,7 @@ export const getActiveBinPrice = async (req: Request, res: Response) => {
     
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(address);
     
     const priceInfo = await meteora.getActiveBinPrice();
@@ -91,6 +95,7 @@ export const getActiveBinPrice = async (req: Request, res: Response) => {
 export const getUserPositions = async (req: Request, res: Response) => {
   try {
     const { poolAddress } = req.query;
+    const computeBudgetConfig = {}; // Empty config since query params don't contain these values
     
     if (!poolAddress) {
       return res.status(400).json({
@@ -102,7 +107,7 @@ export const getUserPositions = async (req: Request, res: Response) => {
     const wallet = await getWallet();
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress as string);
     
     const positions = await meteora.getUserPositions(wallet.publicKey);
@@ -127,7 +132,8 @@ export const getUserPositions = async (req: Request, res: Response) => {
  */
 export const createPosition = async (req: Request, res: Response) => {
   try {
-    const { poolName, poolAddress, xAmount, yAmount, openValue, maxPrice, minPrice, strategyType } = req.body;
+    const { poolName, poolAddress, xAmount, yAmount, openValue, maxPrice, minPrice, strategyType, cuBufferMultiplier, microLamports } = req.body;
+    const computeBudgetConfig = getComputeBudgetConfig(req);
     // "Spot" | "Curve" | "Bid Risk"
     const STRATEGY_TYPE = {
       "Spot": StrategyType.Spot,
@@ -145,7 +151,7 @@ export const createPosition = async (req: Request, res: Response) => {
     const wallet = await getWallet();
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress);
     // The priceInLamports is the raw price value obtained from the Meteora DLMM pool, which is the price representation used internally by the liquidity pool. 
     const maxPriceInLamports = meteora.toPricePerLamport(maxPrice);
@@ -160,7 +166,9 @@ export const createPosition = async (req: Request, res: Response) => {
       yAmount,
       maxBinId,
       minBinId,
-      strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE]
+      strategyType: STRATEGY_TYPE[strategyType as keyof typeof STRATEGY_TYPE],
+      cuBufferMultiplier,
+      microLamports
     });
 
     // 使用事务保证数据一致性
@@ -220,6 +228,7 @@ export const createPosition = async (req: Request, res: Response) => {
 export const getPositionQuote = async (req: Request, res: Response) => {
   try {
     const { poolAddress, xAmount, yAmount, maxPrice, minPrice, strategyType } = req.body;
+    const computeBudgetConfig = getComputeBudgetConfig(req);
     // "Spot" | "Curve" | "Bid Risk"
     const STRATEGY_TYPE = {
       "Spot": StrategyType.Spot,
@@ -237,7 +246,7 @@ export const getPositionQuote = async (req: Request, res: Response) => {
     
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress);
     
     // 将价格转换为Lamport格式
@@ -335,7 +344,7 @@ export interface ProcessedPosition {
 export const getAllUserPositions = async (req: Request, res: Response): Promise<void> => {
   try {
     const { walletAddress } = req.query;
-
+    
     // 参数验证
     if (!walletAddress) {
       res.status(400).json({ error: 'Missing wallet address' });
@@ -403,7 +412,8 @@ export const getAllUserPositions = async (req: Request, res: Response): Promise<
  */
 export const removeLiquidity = async (req: Request, res: Response) => {
   try {
-    const { poolAddress, positionAddress, fromBinId, toBinId } = req.body;
+    const { poolAddress, positionAddress, fromBinId, toBinId, cuBufferMultiplier, microLamports } = req.body;
+    const computeBudgetConfig = getComputeBudgetConfig(req);
     
     if (!poolAddress || !positionAddress || fromBinId === undefined || toBinId === undefined) {
       return res.status(400).json({
@@ -415,10 +425,17 @@ export const removeLiquidity = async (req: Request, res: Response) => {
     const wallet = await getWallet();
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress);
     
-    const txId = await meteora.removeLiquidity(wallet, positionAddress, fromBinId, toBinId);
+    const txId = await meteora.removeLiquidity(
+      wallet, 
+      positionAddress, 
+      fromBinId, 
+      toBinId,
+      cuBufferMultiplier,
+      microLamports
+    );
     
     res.json({
       success: true,
@@ -441,7 +458,8 @@ export const removeLiquidity = async (req: Request, res: Response) => {
  */
 export const closePosition = async (req: Request, res: Response) => {
   try {
-    const { poolAddress, positionAddress } = req.body;
+    const { poolAddress, positionAddress, cuBufferMultiplier, microLamports } = req.body;
+    const computeBudgetConfig = getComputeBudgetConfig(req);
     
     if (!poolAddress || !positionAddress) {
       return res.status(400).json({
@@ -453,10 +471,15 @@ export const closePosition = async (req: Request, res: Response) => {
     const wallet = await getWallet();
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress);
     
-    const txId = await meteora.closePosition(wallet, positionAddress);
+    const txId = await meteora.closePosition(
+      wallet, 
+      positionAddress,
+      cuBufferMultiplier,
+      microLamports
+    );
     
     // Update position record in database with close_time
     try {
@@ -502,7 +525,8 @@ export const closePosition = async (req: Request, res: Response) => {
  */
 export const claimFee = async (req: Request, res: Response) => {
   try {
-    const { poolAddress, positionAddress } = req.body;
+    const { poolAddress, positionAddress, cuBufferMultiplier, microLamports } = req.body;
+    const computeBudgetConfig = getComputeBudgetConfig(req);
     
     if (!poolAddress || !positionAddress) {
       return res.status(400).json({
@@ -514,10 +538,15 @@ export const claimFee = async (req: Request, res: Response) => {
     const wallet = await getWallet();
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
     await meteora.initializeDLMMPool(poolAddress);
     
-    const txId = await meteora.claimFee(wallet, positionAddress);
+    const txId = await meteora.claimFee(
+      wallet, 
+      positionAddress,
+      cuBufferMultiplier,
+      microLamports
+    );
     
     res.json({
       success: true,
@@ -595,6 +624,8 @@ export const updatePosition = async (req: Request, res: Response) => {
 export const getPositionInfo = async (req: Request, res: Response) => {
   try {
     const { position_address } = req.params;
+    // Don't use computeBudgetConfig here since we're using route params, not body
+    const computeBudgetConfig = {};
     
     if (!position_address) {
       return res.status(400).json({
@@ -605,7 +636,7 @@ export const getPositionInfo = async (req: Request, res: Response) => {
     
     const rpcEndpoint = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
     const connection = new Connection(rpcEndpoint, 'confirmed');
-    const meteora = new MeteoraService(connection);
+    const meteora = new MeteoraService(connection, computeBudgetConfig);
 
     const position = await meteora.getPositionInfo(position_address);
 
@@ -620,4 +651,26 @@ export const getPositionInfo = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+};
+
+// 添加工具函数提取计算预算配置
+const getComputeBudgetConfig = (req: Request): MeteoraServiceConfig => {
+  // Safely handle cases when req.body is undefined
+  if (!req.body) {
+    return {};
+  }
+  
+  const { cuBufferMultiplier, microLamports } = req.body;
+  const config: MeteoraServiceConfig = {};
+  
+  // Only add these parameters to config if they are defined
+  if (cuBufferMultiplier !== undefined) {
+    config.cuBufferMultiplier = Number(cuBufferMultiplier);
+  }
+  
+  if (microLamports !== undefined) {
+    config.microLamports = Number(microLamports);
+  }
+  
+  return config;
 };

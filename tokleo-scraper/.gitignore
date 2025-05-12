@@ -10,6 +10,7 @@ yarn-error.log
 # Data files
 tokleo-raw-data.json
 tokleo-structured-data.json
+tokleo-structured-data-*.json
 pool-analysis.json
 
 # Other

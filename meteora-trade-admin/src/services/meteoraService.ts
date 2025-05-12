@@ -55,6 +55,8 @@ export interface CreatePositionParams {
   maxPrice: number;
   minPrice: number;
   strategyType: string;
+  cuBufferMultiplier?: number;
+  microLamports?: number;
 }
 
 export interface CreatePositionResult {

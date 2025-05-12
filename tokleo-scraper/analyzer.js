@@ -12,12 +12,7 @@ function sendNotification(title, message) {
 }
 
 // test notification
-function testNotification() {
-  sendNotification('Test Notification', 'This is a test notification from Tokleo Analyzer');
-  console.log('Test notification sent');
-}
 
-testNotification();
 
 // Function to load and analyze the scraped data
 async function analyzePools() {
@@ -81,10 +76,10 @@ async function analyzePools() {
           try {
             // 这里可以添加调用GeckoTerminal API的代码
             // 现在暂时使用原始数据中已有的安全指标
-            const poolWithToken = data.find(p => p.tokenAddress === tokenAddress && p.securityMetrics);
+            const poolWithToken = data.find(p => p.meteora_degenTokenAddress === tokenAddress);
             resolve({
               tokenAddress,
-              securityMetrics: poolWithToken?.securityMetrics || null
+              securityMetrics: poolWithToken ? extractSecurityMetrics(poolWithToken) : null
             });
           } catch (error) {
             console.error(`获取${tokenAddress}安全指标出错:`, error);
@@ -227,58 +222,63 @@ async function analyzePools() {
   }
 }
 
+// 从原始API数据中提取安全指标
+function extractSecurityMetrics(pool) {
+  // 使用原始API数据中的字段构建安全指标
+  return {
+    holdersCount: parseHoldersCount(pool.oldest_pair_txns?.h24?.total || 0),
+    vol24h: pool.oldest_pair_volume?.h24 || 0,
+    marketCap: pool.oldest_pair_mcap || 0
+  };
+}
+
 // 初步处理池数据，不包括安全检查
 function processPoolDataWithoutSecurity(pool) {
-  // Extract age and convert to hours
-  const ageText = pool.dataPoints['Age'] || '0 hours';
-  const ageHours = parseAgeToHours(ageText);
-  
-  // Parse fee ratios - note that in JSON they use "24H" format (uppercase)
+  // 从原始API响应直接提取数据
+  const ageHours = pool.oldest_pair_ageInHours || 0;
+
+  // 处理费率数据
   const feeRatio = {
-    "24h": parsePercentage(pool.feeRatios['24H']?.ratio),
-    "1h": parsePercentage(pool.feeRatios['1H']?.ratio),
-    "2h": parsePercentage(pool.feeRatios['2H']?.ratio),
-    "30m": parsePercentage(pool.feeRatios['30M']?.ratio),
-    "hourlyRate24h": parsePercentage(pool.feeRatios['24H']?.hourly),
-    "hourlyRate1h": parsePercentage(pool.feeRatios['1H']?.hourly),
-    "hourlyRate2h": parsePercentage(pool.feeRatios['2H']?.hourly),
-    "hourlyRate30m": parsePercentage(pool.feeRatios['30M']?.hourly),
-    "change30m": parseRatioChange(pool.feeRatios['30M']?.change)
+    "24h": pool.meteora_feeTvlRatio?.h24 || 0,
+    "1h": pool.meteora_feeTvlRatio?.h1 || 0,
+    "2h": pool.meteora_feeTvlRatio?.h2 || 0,
+    "30m": pool.meteora_feeTvlRatio?.m30 || 0,
+    "hourlyRate24h": pool.meteora_feeTvlRatio?.h24_per_hour || 0,
+    "hourlyRate1h": pool.meteora_feeTvlRatio?.h1_per_hour || 0,
+    "hourlyRate2h": pool.meteora_feeTvlRatio?.h2_per_hour || 0,
+    "hourlyRate30m": pool.meteora_feeTvlRatio?.m30_per_hour || 0,
+    "change30m": pool.meteora_feeTvlRatio?.m30_vs_h24_per_hour || 0
   };
   
-  // Parse volume data - also uppercase "H" in JSON
+  // 处理成交量数据
   const volume = {
-    "24hHourly": parseVolumeValue(pool.volumeData['24H']?.hourly),
-    "1hHourly": parseVolumeValue(pool.volumeData['1H']?.hourly),
-    "2hHourly": parseVolumeValue(pool.volumeData['6H']?.hourly) 
+    "24hHourly": pool.oldest_pair_volume?.h24_per_hour || 0,
+    "1hHourly": pool.oldest_pair_volume?.h1_per_hour || 0,
+    "2hHourly": pool.oldest_pair_volume?.h6_per_hour || 0
   };
   
-  // Extract token info
+  // 提取token信息
   const tokenInfo = {
-    name: pool.tokenPair || '',
-    address: pool.tokenAddress || ''
+    name: pool.meteora_name || '',
+    address: pool.meteora_degenTokenAddress || ''
   };
   
-  // Extract and normalize other important data
-  const binStep = extractNumericValue(pool.dataPoints['Bin Step']);
-  const baseFee = extractNumericValue(pool.dataPoints['Base Fee']);
-  const liquidity = pool.dataPoints['Liquidity'] || '$0';
-  const volume24h = pool.volumeData['24H']?.volume || '$0';
-  const fees24h = pool.dataPoints['Fees (24h)'] || calculateFees(volume24h, baseFee);
+  // 构建格式化的年龄字符串
+  const ageString = `${Math.floor(ageHours / 24)} days ${ageHours % 24} hours`;
   
   return {
-    poolName: pool.tokenPair,
-    poolAddress: pool.poolAddress,
-    tokenAddress: pool.tokenAddress,
+    poolName: pool.meteora_name,
+    poolAddress: pool.meteora_address,
+    tokenAddress: pool.meteora_degenTokenAddress,
     tokenInfo: tokenInfo,
     exchangeInfo: { type: 'Meteora DLMM' },
-    age: pool.dataPoints['Age'] || '0 hours',
+    age: ageString,
     ageHours: ageHours,
-    binStep: binStep,
-    baseFee: baseFee,
-    liquidity: liquidity,
-    volume24h: volume24h,
-    fees24h: fees24h,
+    binStep: pool.meteora_binStep || 0,
+    baseFee: pool.meteora_baseFeePercentage || 0,
+    liquidity: pool.meteora_liquidity || 0,
+    volume24h: pool.oldest_pair_volume?.h24 || 0,
+    fees24h: pool.meteora_fees?.h24 || 0,
     feeRatio: feeRatio,
     volume: volume,
     signals: [],
@@ -286,19 +286,10 @@ function processPoolDataWithoutSecurity(pool) {
   };
 }
 
-// 解析比率变化值，从格式如"(+156%)"中提取数值
-function parseRatioChange(changeText) {
-  if (!changeText || changeText === "(base)") return 0;
-  const match = changeText.match(/\(([+-])(\d+)%\)/);
-  if (!match) return 0;
-  const sign = match[1] === '+' ? 1 : -1;
-  return sign * parseInt(match[2], 10);
-}
-
 // 最终确定池数据，包括添加信号
 function finalizePoolData(pool) {
   // 处理安全指标
-  const securityMetrics = processSecurityMetrics(pool.securityMetrics || pool.rawPool?.securityMetrics);
+  const securityMetrics = pool.securityMetrics || extractSecurityMetrics(pool.rawPool);
   
   // 识别信号
   const signals = [];
@@ -353,83 +344,22 @@ function finalizePoolData(pool) {
   return result;
 }
 
-// Process security metrics from GeckoTerminal
-function processSecurityMetrics(metrics) {
-  if (!metrics) return null;
-  
-  const holdersText = metrics['Holders'] || '0';
-  const vol24hText = metrics['24h Vol'] || '$0';
-  const marketCapText = metrics['Market Cap'] || '$0';
-  
-  return {
-    holdersCount: parseHoldersCount(holdersText),
-    vol24h: parseVolumeValue(vol24hText),
-    marketCap: parseVolumeValue(marketCapText),
-    raw: metrics
-  };
-}
-
 // Parse holders count from format like "4.26K"
 function parseHoldersCount(holdersText) {
   if (!holdersText) return 0;
   
-  if (holdersText.includes('K')) {
-    return parseFloat(holdersText.replace('K', '')) * 1000;
-  }
-  if (holdersText.includes('M')) {
-    return parseFloat(holdersText.replace('M', '')) * 1000000;
-  }
-  
-  return parseInt(holdersText.replace(/,/g, ''), 10) || 0;
-}
-
-// Helper functions for data parsing
-function parseAgeToHours(ageText) {
-  if (!ageText) return 0;
-  
-  // Format can be "17 hours" or "5 days 2 hours"
-  const hours = ageText.match(/(\d+)\s*hour/);
-  const days = ageText.match(/(\d+)\s*day/);
-  
-  let totalHours = 0;
-  if (hours) totalHours += parseInt(hours[1]);
-  if (days) totalHours += parseInt(days[1]) * 24;
-  
-  return totalHours || 0;
-}
-
-function parsePercentage(percentText) {
-  if (!percentText) return 0;
-  return parseFloat(percentText.replace('%', '')) || 0;
-}
-
-function parseVolumeValue(volumeText) {
-  if (!volumeText) return 0;
-  
-  // Handle formats like "$916K/H" or "$220K/H"
-  const value = volumeText.replace(/[$/,H]/g, '');
-  
-  // Handle K, M, B suffixes
-  if (value.includes('K')) {
-    return parseFloat(value.replace('K', '')) * 1000;
-  } else if (value.includes('M')) {
-    return parseFloat(value.replace('M', '')) * 1000000;
-  } else if (value.includes('B')) {
-    return parseFloat(value.replace('B', '')) * 1000000000;
+  if (typeof holdersText === 'string') {
+    if (holdersText.includes('K')) {
+      return parseFloat(holdersText.replace('K', '')) * 1000;
+    }
+    if (holdersText.includes('M')) {
+      return parseFloat(holdersText.replace('M', '')) * 1000000;
+    }
+    
+    return parseInt(holdersText.replace(/,/g, ''), 10) || 0;
   }
   
-  return parseFloat(value) || 0;
-}
-
-function extractNumericValue(text) {
-  if (!text) return 0;
-  const match = text.match(/(\d+(\.\d+)?)/);
-  return match ? parseFloat(match[1]) : 0;
-}
-
-function calculateFees(volumeText, baseFee) {
-  const volume = parseVolumeValue(volumeText);
-  return (volume * baseFee / 100).toFixed(2);
+  return holdersText;
 }
 
 // Helper function to format a pool for the summary report
